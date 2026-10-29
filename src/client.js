@@ -35,6 +35,8 @@
 				easterEggLines: [],
 				eggLines: {},
 				eggComboChance: 0.5,
+				lang: "zh",
+				voice: true,
 			};
 			const POS_KEY = "dsh-kon-fee:pos";
 			const configListeners = new Set();
@@ -495,6 +497,7 @@
 				const clickTimer = useRef(0);
 				const eggTimer = useRef(0);
 				const lastClick = useRef(0);
+				const audioRef = useRef(null);
 
 				// 外部改了 scale（比如设置页/配置文件）时同步滑杆
 				useEffect(() => { setScaleDraft(config.scale); }, [config.scale]);
@@ -571,6 +574,16 @@
 					window.clearTimeout(panelTimer.current);
 				}, []);
 
+				// 语音：和桌宠一样，用一个 Audio 元素播 assets/voices/ 下的文件
+				const playVoice = useCallback((file) => {
+					try {
+						const audio = audioRef.current || (audioRef.current = new Audio());
+						audio.src = `${ASSET_BASE}/voices/${encodeURIComponent(file)}?v=${ASSET_REV}`;
+						audio.volume = 0.7;
+						audio.play().catch(() => {});
+					} catch { /* 不支持播放时静默 */ }
+				}, []);
+
 				// 单击：开/关账本（开彩蛋时延迟一点，等双击判定）；双击：弹一句彩蛋
 				const clickTable = useCallback(() => {
 					if (config.easterEgg === false) {
@@ -584,11 +597,13 @@
 						lastClick.current = 0;
 						hidePanel();
 						window.clearTimeout(eggTimer.current);
-						setEgg(Core.pickEgg(visibleIds, {
+						const entry = Core.pickEgg(visibleIds, {
 							lines: config.eggLines,
 							fallback: config.easterEggLines,
 							comboChance: config.eggComboChance,
-						}));
+						});
+						setEgg(Core.eggText(entry, config.lang));
+						if (entry.voice && config.voice !== false) playVoice(entry.voice);
 						eggTimer.current = window.setTimeout(() => setEgg(""), 5200);
 						return;
 					}

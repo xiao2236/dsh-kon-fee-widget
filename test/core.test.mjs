@@ -145,25 +145,34 @@ test("状态行与台词", () => {
 
 test("双击彩蛋：单人只出本人台词，组合按概率触发，键顺序无关", () => {
 	// 单人在场：只出这个人的
-	const mio = new Set(Core.DEFAULT_EGG_LINES.mio);
-	for (let i = 0; i < 20; i += 1) assert.ok(mio.has(Core.pickEgg(["mio"])), "澪单独在场只出澪的台词");
-	const azusa = new Set(Core.DEFAULT_EGG_LINES.azusa);
-	for (let i = 0; i < 20; i += 1) assert.ok(azusa.has(Core.pickEgg(["azusa"])), "梓单独在场只出梓的台词");
+	const zhOf = (list) => new Set(list.map((entry) => Core.eggText(entry, "zh")));
+	const mio = zhOf(Core.DEFAULT_EGG_LINES.mio);
+	for (let i = 0; i < 20; i += 1) assert.ok(mio.has(Core.eggText(Core.pickEgg(["mio"]), "zh")), "澪单独在场只出澪的台词");
+	const azusa = zhOf(Core.DEFAULT_EGG_LINES.azusa);
+	for (let i = 0; i < 20; i += 1) assert.ok(azusa.has(Core.eggText(Core.pickEgg(["azusa"]), "zh")), "梓单独在场只出梓的台词");
 
 	// 组合 100% 命中
-	const combos = new Set(Core.DEFAULT_EGG_LINES["azusa+yui"]);
-	for (let i = 0; i < 20; i += 1) assert.ok(combos.has(Core.pickEgg(["yui", "azusa"], { comboChance: 1 })), "唯+梓走组合台词");
+	const combos = zhOf(Core.DEFAULT_EGG_LINES["azusa+yui"]);
+	for (let i = 0; i < 20; i += 1) assert.ok(combos.has(Core.eggText(Core.pickEgg(["yui", "azusa"], { comboChance: 1 }), "zh")), "唯+梓走组合台词");
 
 	// 组合概率 0：退回单人（不是组合句）
-	const singlePool = new Set([...Core.DEFAULT_EGG_LINES.yui, ...Core.DEFAULT_EGG_LINES.azusa]);
+	const singlePool = new Set([...zhOf(Core.DEFAULT_EGG_LINES.yui), ...zhOf(Core.DEFAULT_EGG_LINES.azusa)]);
 	for (let i = 0; i < 20; i += 1) {
-		const line = Core.pickEgg(["yui", "azusa"], { comboChance: 0 });
+		const line = Core.eggText(Core.pickEgg(["yui", "azusa"], { comboChance: 0 }), "zh");
 		assert.ok(singlePool.has(line), "没有组合命中时退回单人的台词");
 	}
 
 	// 自定义组合，键顺序反过来也认
-	const custom = Core.pickEgg(["ritsu", "mio"], { lines: { "ritsu+mio": ["自定义组合"] }, comboChance: 1 });
+	const custom = Core.eggText(Core.pickEgg(["ritsu", "mio"], { lines: { "ritsu+mio": ["自定义组合"] }, comboChance: 1 }), "zh");
 	assert.equal(custom, "自定义组合");
+
+	// 日中对照：同一条能按语言取到对应文案
+	const entry = Core.pickEgg(["mio"], { lines: { mio: [{ zh: "中文", ja: "日本語" }] }, comboChance: 1 });
+	assert.equal(Core.eggText(entry, "zh"), "中文");
+	assert.equal(Core.eggText(entry, "ja"), "日本語");
+	// 只写一种语言时两边都能出
+	const onlyZh = Core.pickEgg(["mio"], { lines: { mio: ["只有中文"] }, comboChance: 1 });
+	assert.equal(Core.eggText(onlyZh, "ja"), "只有中文");
 });
 
 test("茶桌几何：五个座位、坐标与帧宽", () => {

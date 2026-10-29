@@ -84,32 +84,83 @@
 	};
 
 	// 双击彩蛋：轻音部味的小句子（配置里 easterEggLines 可以覆盖）
+	// 双击彩蛋：轻音部味的小句子（{ ja, zh } 成对；配置里 easterEggLines 可以覆盖）
 	const EGG_LINES = [
-		"放学后茶会，开始！",
-		"ふわふわ時間～",
-		"再来一块蛋糕怎么样？",
-		"梓喵～今天也要加油哦。",
-		"唯：わーい！",
-		"律：部费要省着点花啦。",
-		"䌷：我家有茶点，随便吃。",
-		"澪：别、别盯着我看啦！",
-		"轻音部，活动开始！",
-		"要不要一起听首歌？",
+		{ ja: "放課後ティータイム、開始！", zh: "放学后茶会，开始！" },
+		{ ja: "ふわふわ時間～", zh: "软绵绵的时间～" },
+		{ ja: "ケーキ、もう一枚どう？", zh: "再来一块蛋糕怎么样？" },
+		{ ja: "あずにゃん、今日も頑張ってね。", zh: "梓喵～今天也要加油哦。" },
+		{ ja: "唯：わーい！", zh: "唯：哇——！" },
+		{ ja: "律：部費は計画的にね。", zh: "律：部费要省着点花啦。" },
+		{ ja: "䌷：うちでお茶しない？", zh: "䌷：我家有茶点，随便吃。" },
+		{ ja: "澪：見、見ないでよ！", zh: "澪：别、别盯着我看啦！" },
+		{ ja: "軽音部、活動開始！", zh: "轻音部，活动开始！" },
+		{ ja: "一緒に一曲どう？", zh: "要不要一起听首歌？" },
 	];
 
 	// 按在场角色分的默认彩蛋台词；键是角色 id，组合用 "id+id"（顺序无关，会排序）
 	const DEFAULT_EGG_LINES = {
-		mio: ["澪：今、今日はこのへんで…", "别、别盯着我看啦！", "澪：部费我会记好的。"],
-		ritsu: ["律：部费要省着点花啦。", "律：今天就轻松一下吧！", "律：哎嘿，又超支了？"],
-		yui: ["唯：わーい！", "唯：蛋糕！蛋糕！", "唯：今天也要加油哦～"],
-		tsumugi: ["䌷：我家有茶点，随便吃。", "䌷：要不要来我家喝茶？", "䌷：钱的事不用担心啦。"],
-		azusa: ["梓喵～今天也要加油哦。", "梓：前辈们别闹啦。", "梓：部费又花在哪了…"],
-		"mio+ritsu": ["律：澪，今天也别害羞啦。", "澪：律，别闹…"],
-		"azusa+yui": ["唯：梓喵，一起练琴吧！", "梓：唯前辈，音准…"],
-		"mio+yui": ["唯：澪，教我弹贝斯嘛。", "澪：唯，先把谱子看完…"],
-		"ritsu+tsumugi": ["䌷：律，茶点准备好了。", "律：䌷家的蛋糕最棒了！"],
+		mio: [
+			{ ja: "澪：今、今日はこのへんで…", zh: "澪：今、今天先到这里吧…" },
+			{ ja: "澪：見、見ないでよ！", zh: "澪：别、别盯着我看啦！" },
+			{ ja: "澪：部費はちゃんとつけるから。", zh: "澪：部费我会记好的。" },
+		],
+		ritsu: [
+			{ ja: "律：部費は計画的に使おうね。", zh: "律：部费要省着点花啦。" },
+			{ ja: "律：今日はゆるっと行こう！", zh: "律：今天就轻松一下吧！" },
+			{ ja: "律：えへへ、また使いすぎた？", zh: "律：哎嘿，又超支了？" },
+		],
+		yui: [
+			{ ja: "唯：わーい！", zh: "唯：哇——！" },
+			{ ja: "唯：ケーキ！ケーキ！", zh: "唯：蛋糕！蛋糕！" },
+			{ ja: "唯：今日も頑張るよ～", zh: "唯：今天也要加油哦～" },
+		],
+		tsumugi: [
+			{ ja: "䌷：うちでお茶しない？", zh: "䌷：要不要来我家喝茶？" },
+			{ ja: "䌷：お金のことは気にしないで。", zh: "䌷：钱的事不用担心啦。" },
+			{ ja: "䌷：お菓子、たくさんあるよ。", zh: "䌷：我家有茶点，随便吃。" },
+		],
+		azusa: [
+			{ ja: "梓：あずにゃんだよ。", zh: "梓：人家是梓喵啦。" },
+			{ ja: "梓：先輩たち、ちゃんとしてください…", zh: "梓：前辈们别闹啦。" },
+			{ ja: "梓：また部費使いすぎです…", zh: "梓：部费又花在哪了…" },
+		],
+		"mio+ritsu": [
+			{ ja: "律：澪、今日も照れてる～", zh: "律：澪，今天也别害羞啦。" },
+			{ ja: "澪：律、やめて…", zh: "澪：律，别闹…" },
+		],
+		"azusa+yui": [
+			{ ja: "唯：あずにゃん、一緒に練習しよう！", zh: "唯：梓喵，一起练琴吧！" },
+			{ ja: "梓：唯先輩、音程…", zh: "梓：唯前辈，音准…" },
+		],
+		"mio+yui": [
+			{ ja: "唯：澪、ベース教えて！", zh: "唯：澪，教我弹贝斯嘛。" },
+			{ ja: "澪：唯、まず譜面を読んで…", zh: "澪：唯，先把谱子看完…" },
+		],
+		"ritsu+tsumugi": [
+			{ ja: "䌷：律、お茶点を用意したよ。", zh: "䌷：律，茶点准备好了。" },
+			{ ja: "律：䌷のケーキ最高！", zh: "律：䌷家的蛋糕最棒了！" },
+		],
 	};
 
+	/** 一条彩蛋台词统一成 { ja, zh, voice }；纯字符串当作中文。 */
+	function normalizeEggEntry(value) {
+		if (typeof value === "string") return { ja: "", zh: value, voice: "" };
+		if (value && typeof value === "object" && !Array.isArray(value)) {
+			const zh = typeof value.zh === "string" ? value.zh : "";
+			const ja = typeof value.ja === "string" ? value.ja : "";
+			const voice = typeof value.voice === "string" ? value.voice : "";
+			if (zh || ja) return { ja: ja || zh, zh: zh || ja, voice };
+		}
+		return null;
+	}
+
+	/** 按语言取彩蛋台词；没有对应语言就用另一个。 */
+	function eggText(entry, lang = "zh") {
+		const value = entry || {};
+		if (lang === "ja") return value.ja || value.zh || "";
+		return value.zh || value.ja || "";
+	}
 	/** 从若干 id 里取组合（size >= 2）。 */
 	function combinations(ids, size) {
 		const result = [];
@@ -378,12 +429,15 @@
 		const chance = Number.isFinite(Number(options.comboChance)) ? clamp(Number(options.comboChance), 0, 1) : 0.5;
 		const table = {};
 		const normKey = (key) => String(key).split("+").map((part) => part.trim()).filter(Boolean).sort().join("+");
-		for (const key of Object.keys(DEFAULT_EGG_LINES)) table[normKey(key)] = DEFAULT_EGG_LINES[key];
+		const normPool = (list) => (Array.isArray(list) ? list.map(normalizeEggEntry).filter(Boolean) : []);
+		for (const key of Object.keys(DEFAULT_EGG_LINES)) table[normKey(key)] = normPool(DEFAULT_EGG_LINES[key]);
 		for (const key of Object.keys(custom)) {
-			if (Array.isArray(custom[key]) && custom[key].length) table[normKey(key)] = custom[key];
+			const pool = normPool(custom[key]);
+			if (pool.length) table[normKey(key)] = pool;
 		}
-		const pick = (pool) => String(pool[Math.floor(Math.random() * pool.length)] || "");
-		const own = (id) => (Array.isArray(table[id]) && table[id].length ? pick(table[id]) : pick(fallback));
+		const fallbackPool = normPool(fallback);
+		const pick = (pool) => pool[Math.floor(Math.random() * pool.length)] || { ja: "", zh: "", voice: "" };
+		const own = (id) => (table[id] && table[id].length ? pick(table[id]) : pick(fallbackPool));
 		const keyOf = (list) => [...list].sort().join("+");
 		if (ids.length === 1) return own(ids[0]);
 		if (ids.length > 1) {
@@ -477,6 +531,8 @@
 		pickLine,
 		pickEggLine,
 		pickEgg,
+		eggText,
+		normalizeEggEntry,
 		DEFAULT_EGG_LINES,
 		statusInfo,
 		sanitizeSettings,
