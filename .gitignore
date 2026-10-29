@@ -1,0 +1,10 @@
+node_modules/
+.work/
+*.log
+*.tgz
+.DS_Store
+*.tsbuildinfo
+__pycache__/
+.vscode/
+
+screen_shotcut.png

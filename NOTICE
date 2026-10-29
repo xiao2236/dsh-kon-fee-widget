@@ -1,0 +1,19 @@
+# NOTICE — 来源与致谢
+
+本插件的**代码**以 MIT 许可发布（见 [`LICENSE`](LICENSE)）。
+
+## 交互参考（未复制代码）
+
+挂件形态与以下交互**受** [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)（MIT, Copyright (c) 2026 MeteorNOX）**启发**：
+
+- 四边吸附 + 贴左镜像翻转
+- 按压回弹（Q 弹）
+- 余额数字滚动
+- 点击角色冒泡
+- 余额取数思路：宿主侧读 `DEEPSEEK_API_KEY` 凭据 → `GET https://api.deepseek.com/user/balance`
+
+本仓库**没有复制**该项目的任何源码、`assets/` 或 `icon.png`；上述交互由本项目独立实现。余额字段解析、吸附数值、挂件布局与全部美术素材均为本项目自有实现。为尊重原作者，特此标注来源；本插件与 `dsh-whale-widget` 维护者**无隶属关系，也未获其背书**。
+
+## 素材
+
+角色图像不属于 MIT，来源与权利状态见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
