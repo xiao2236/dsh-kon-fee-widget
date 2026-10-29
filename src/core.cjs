@@ -346,6 +346,7 @@
 	function formatCost(amount) {
 		const value = Number(amount);
 		if (!Number.isFinite(value)) return "—";
+		if (value === 0) return "¥0.00";
 		const decimals = value >= 1 ? 2 : value >= 0.01 ? 3 : 4;
 		return `¥${value.toFixed(decimals)}`;
 	}
