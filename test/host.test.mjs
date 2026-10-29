@@ -2,10 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { apply } from "../lib/index.js";
 
-/** 造一个假的 ctx：记录 webServer 注册的 handler，按需提供 credentials / deepseekAccount。 */
+/** 造一个假的 ctx：记录 webServer 注册的 handler 与会话事件订阅。 */
 function makeCtx({ credentials, account } = {}) {
 	const ctx = {
+		handlers: {},
 		effect(fn) { return fn(); },
+		on(event, listener) {
+			ctx.handlers[event] = listener;
+			return () => {};
+		},
 		get(name) {
 			if (name === "credentials") return credentials || null;
 			if (name === "deepseekAccount") return account || null;
@@ -22,15 +27,20 @@ function makeCtx({ credentials, account } = {}) {
 	return ctx;
 }
 
-/** 造一个假的 res，收集 JSON 输出。 */
-function callBalance(handler, query = "") {
+/** 调一条路由，收集 JSON。 */
+function callRoute(handler, path) {
 	const captured = { status: 0, headers: null, body: "" };
 	const res = {
 		writeHead(status, headers) { captured.status = status; captured.headers = headers; },
 		end(payload) { captured.body = payload ? payload.toString("utf8") : ""; },
 	};
-	const req = { method: "GET", url: `/dsh-kon-fee-widget/balance${query}` };
+	const req = { method: "GET", url: path };
 	return handler(req, res).then(() => ({ ...captured, json: captured.body ? JSON.parse(captured.body) : null }));
+}
+
+/** 造一个假的 res，收集 JSON 输出。 */
+function callBalance(handler, query = "") {
+	return callRoute(handler, `/dsh-kon-fee-widget/balance${query}`);
 }
 
 test("有 API key：走 /user/balance 并解析 total_balance", async (t) => {
@@ -114,6 +124,57 @@ test("上游失败但没有账号：request-failed", async (t) => {
 		globalThis.fetch = originalFetch;
 		if (originalKey !== undefined) process.env.DEEPSEEK_API_KEY = originalKey;
 	}
+});
+
+test("每轮消耗：assistant/message 聚合 + turn/end 结算", async () => {
+	const ctx = makeCtx({});
+	assert.equal(typeof ctx.handlers["session/event"], "function", "订阅了会话事件流");
+	const emit = (session, event) => ctx.handlers["session/event"](session, event);
+
+	const empty = await callRoute(ctx.handler, "/dsh-kon-fee-widget/last-turn");
+	assert.equal(empty.json.ok, true);
+	assert.equal(empty.json.turn, null, "还没跑过对话时没有记录");
+
+	// Flash：命中 2000、未命中 1000、输出 500
+	emit({ id: "s1" }, {
+		type: "assistant/message",
+		data: { turn: 1, usage: { inputTokens: 1000, cacheReadTokens: 2000, outputTokens: 500 }, message: { source: { model: "deepseek-v4-flash" } } },
+	});
+	emit({ id: "s1" }, { type: "turn/end" });
+	const first = (await callRoute(ctx.handler, "/dsh-kon-fee-widget/last-turn")).json.turn;
+	assert.equal(first.tokens, 3500, "token 总数 = 命中 + 未命中 + 输出");
+	assert.equal(first.model, "deepseek-v4-flash");
+	const price = first.peak ? { hit: 0.04, miss: 2, out: 8 } : { hit: 0.02, miss: 1, out: 4 };
+	const expected = (2000 / 1e6) * price.hit + (1000 / 1e6) * price.miss + (500 / 1e6) * price.out;
+	assert.ok(Math.abs(first.amount - expected) < 1e-9, `金额按峰谷价算（${first.amount} ≈ ${expected}）`);
+
+	// 第二轮（Pro，100 万未命中）覆盖 lastTurn
+	emit({ id: "s1" }, {
+		type: "assistant/message",
+		data: { turn: 2, usage: { inputTokens: 1_000_000, cacheReadTokens: 0, outputTokens: 0 }, message: { source: { model: "deepseek-v4-pro" } } },
+	});
+	emit({ id: "s1" }, { type: "turn/end" });
+	const second = (await callRoute(ctx.handler, "/dsh-kon-fee-widget/last-turn")).json.turn;
+	assert.equal(second.tokens, 1_000_000);
+	assert.equal(second.model, "deepseek-v4-pro");
+	assert.ok(second.amount > first.amount, "Pro 更贵");
+	assert.ok(second.amount >= 4.5, "100 万未命中至少 4.5 元起");
+
+	// 中途换轮：还没 turn/end 又来了新 turn，旧的一轮先结算
+	emit({ id: "s1" }, {
+		type: "assistant/message",
+		data: { turn: 3, usage: { inputTokens: 100, cacheReadTokens: 0, outputTokens: 0 }, message: { source: { model: "deepseek-v4-flash" } } },
+	});
+	emit({ id: "s1" }, {
+		type: "assistant/message",
+		data: { turn: 4, usage: { inputTokens: 200, cacheReadTokens: 0, outputTokens: 0 }, message: { source: { model: "deepseek-v4-flash" } } },
+	});
+	const afterShift = (await callRoute(ctx.handler, "/dsh-kon-fee-widget/last-turn")).json.turn;
+	assert.ok(afterShift, "换轮时旧轮已结算");
+	// 第三轮结算后应该是 turn 4 的 200
+	emit({ id: "s1" }, { type: "turn/end" });
+	const last = (await callRoute(ctx.handler, "/dsh-kon-fee-widget/last-turn")).json.turn;
+	assert.equal(last.tokens, 200);
 });
 
 test("静态素材路由仍然可用，非本插件前缀返回 404", async () => {

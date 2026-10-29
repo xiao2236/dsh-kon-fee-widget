@@ -111,6 +111,12 @@
 .konfee-foot{display:flex;justify-content:space-between;gap:8px;margin-top:7px;font-size:9.5px;color:#a4886b}
 .konfee-status{font-size:9.5px;color:#a4886b}
 .konfee-status.tone-error{color:#c4563f}
+.konfee-spend{position:fixed;transform:translate(-50%,-100%);display:flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;background:rgba(56,44,32,.93);color:#fff6e7;font-size:11px;box-shadow:0 10px 22px rgba(40,28,16,.28);pointer-events:none;z-index:2147481912;white-space:nowrap;animation:konfee-spend-in .22s cubic-bezier(.2,1.4,.4,1)}
+.konfee-spend b{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.konfee-spend span{opacity:.72;font-variant-numeric:tabular-nums}
+.konfee-spend .konfee-spend-tag{opacity:1;font-size:9.5px;padding:1.5px 6px;border-radius:999px;background:rgba(255,255,255,.15)}
+.konfee-spend.is-below{transform:translate(-50%,0)}
+@keyframes konfee-spend-in{from{opacity:0;transform:translate(-50%,-100%) translateY(4px)}to{opacity:1;transform:translate(-50%,-100%) translateY(0)}}
 .konfee-set{padding:2px 0 26px;font-size:13px;line-height:1.6;color:inherit}
 .konfee-set h2{font-size:18px;font-weight:650;margin:0 0 4px}
 .konfee-set-sub{font-size:12px;opacity:.6;margin:0 0 16px}
@@ -137,6 +143,12 @@
 
 			function styleElement() {
 				return h("style", { "data-konfee-style": "inline", dangerouslySetInnerHTML: { __html: CSS } });
+			}
+
+			/** 1.2k tokens 这种紧凑写法。 */
+			function formatTokens(tokens) {
+				const value = Number(tokens) || 0;
+				return value >= 1000 ? `${(value / 1000).toFixed(1)}k` : String(value);
 			}
 
 			// ---------------- 余额 ----------------
@@ -201,6 +213,43 @@
 				}, [refresh, settings.refreshSeconds]);
 
 				return { ...state, refresh };
+			}
+
+			/** 轮询宿主记的「上一轮消耗」；只有出现新的 at 才算新的一轮。 */
+			function useTurnCost(settings) {
+				const [turn, setTurn] = useState(null);
+				const seen = useRef(0);
+				const primed = useRef(false);
+				useEffect(() => {
+					if (!settings.turnBubble) return undefined;
+					let alive = true;
+					const poll = async () => {
+						try {
+							const response = await fetch(`${ASSET_BASE}/last-turn?ts=${Date.now()}`, { cache: "no-store" });
+							const body = response.ok ? await response.json() : null;
+							if (!alive || !body) return;
+							const at = body.turn ? Number(body.turn.at) || 0 : 0;
+							if (!primed.current) {
+								// 第一次只记住基线（包括"还没有记录"=0），不把旧结果弹出来
+								primed.current = true;
+								seen.current = at;
+								return;
+							}
+							if (!at || at <= seen.current) return;
+							seen.current = at;
+							setTurn({ ...body.turn, at });
+						} catch {
+							/* 宿主没有这个路由时静默 */
+						}
+					};
+					poll();
+					const timer = window.setInterval(poll, 5000);
+					return () => {
+						alive = false;
+						window.clearInterval(timer);
+					};
+				}, [settings.turnBubble]);
+				return turn;
 			}
 
 			// ---------------- 茶桌素材 ----------------
@@ -344,6 +393,7 @@
 			function FeeWidget() {
 				const settings = useSettings();
 				const balance = useBalance(settings);
+				const turn = useTurnCost(settings);
 				const assets = useTableAssets();
 				// 座位段：全展示 = 五段；关掉后按勾选抽掉对应段，桌子跟着变短
 				const selected = TABLE.seats.filter((seat) => settings.characters[seat.id]).map((seat) => seat.id);
@@ -361,8 +411,17 @@
 				const [dragging, setDragging] = useState(false);
 				const [open, setOpen] = useState(false);
 				const [now, setNow] = useState(() => Date.now());
+				const [spend, setSpend] = useState(null);
 				const dragRef = useRef(null);
 				const panelTimer = useRef(0);
+
+				// 新一轮结算 → 弹 6 秒小气泡
+				useEffect(() => {
+					if (!turn) return undefined;
+					setSpend(turn);
+					const timer = window.setTimeout(() => setSpend(null), 6000);
+					return () => window.clearTimeout(timer);
+				}, [turn]);
 
 				// 位置：设置里重置（pos=null）时回到默认左下角
 				useEffect(() => {
@@ -544,6 +603,18 @@
 							assets ? h(TableFront, { image: assets.desk01, frame }) : null,
 						),
 					),
+					spend && !open ? h("div", {
+						className: `konfee-spend${panelBelow ? " is-below" : ""}`,
+						"data-konfee": "spend",
+						style: {
+							left: `${Math.round(panelLeft)}px`,
+							top: `${Math.round(panelBelow ? pos.y + size.height + 12 : pos.y - 10)}px`,
+						},
+					},
+						h("b", null, `本轮 ${Core.formatCost(spend.amount)}`),
+						h("span", null, `${formatTokens(spend.tokens)} tokens`),
+						h("span", { className: "konfee-spend-tag" }, spend.peak ? "高峰" : "谷时"),
+					) : null,
 					open ? h("div", {
 						className: `konfee-panel${panelBelow ? " is-below" : ""}`,
 						"data-konfee": "panel",
@@ -611,6 +682,13 @@
 								h("small", null, "关掉后茶桌不再出现"),
 							),
 							h(FeeSwitch, { checked: settings.visible, onChange: () => updateSettings({ visible: !settings.visible }), label: "显示挂件" }),
+						),
+						h("div", { className: "konfee-set-row" },
+							h("div", { className: "konfee-set-name" },
+								h("b", null, "每轮消耗气泡"),
+								h("small", null, "一轮对话结束后弹一小条：本轮多少钱、多少 token（按官方价目表估算）"),
+							),
+							h(FeeSwitch, { checked: settings.turnBubble, onChange: () => updateSettings({ turnBubble: !settings.turnBubble }), label: "每轮消耗气泡" }),
 						),
 						h("div", { className: "konfee-set-row" },
 							h("div", { className: "konfee-set-name" },

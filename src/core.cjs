@@ -59,6 +59,7 @@
 		refreshSeconds: 60,
 		warnBelow: WARN_DEFAULT,
 		showAll: true,
+		turnBubble: true,
 		characters: { mio: true, ritsu: true, yui: true, tsumugi: true, azusa: true },
 		pos: null,
 		edge: null,
@@ -231,6 +232,14 @@
 		return `${value.toFixed(2)} ${code}`;
 	}
 
+	/** 每轮消耗：金额很小，小数位按量级自适应（1 元以上 2 位、1 分以上 3 位、更小 4 位）。 */
+	function formatCost(amount) {
+		const value = Number(amount);
+		if (!Number.isFinite(value)) return "—";
+		const decimals = value >= 1 ? 2 : value >= 0.01 ? 3 : 4;
+		return `¥${value.toFixed(decimals)}`;
+	}
+
 	/** 从 DeepSeek /user/balance 的返回里取余额。 */
 	function parseBalance(raw) {
 		const json = raw && typeof raw === "object" ? raw : {};
@@ -341,6 +350,7 @@
 			refreshSeconds: REFRESH_OPTIONS.includes(refresh) ? refresh : DEFAULT_SETTINGS.refreshSeconds,
 			warnBelow: Number.isFinite(warn) ? clamp(Math.round(warn * 100) / 100, 0, 10000) : DEFAULT_SETTINGS.warnBelow,
 			showAll: source.showAll !== false,
+			turnBubble: source.turnBubble !== false,
 			characters,
 			pos,
 			edge,
@@ -367,6 +377,7 @@
 		formatCountdown,
 		priceBoundaries,
 		formatMoney,
+		formatCost,
 		parseBalance,
 		priceWindow,
 		snapToEdge,
