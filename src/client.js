@@ -137,12 +137,12 @@
 .konfee-panel.is-mascot{width:355px;height:266px;background:url(/dsh-kon-fee-widget/ui/mascot.png) center/100% 100% no-repeat}
 .konfee-panel.is-plain{width:250px;padding:11px 14px 10px;background:linear-gradient(180deg,#fffdf8 0%,#fdf6e9 100%);border:1px solid rgba(163,131,94,.34)}
 .konfee-logo{position:absolute;right:10px;bottom:4px;width:52px;height:auto;opacity:.9;pointer-events:none}
-.konfee-body{position:absolute;display:flex;flex-direction:column;justify-content:space-between;padding:5px 8px;border-radius:8px;background:rgba(255,253,248,.86);box-shadow:inset 0 0 0 1px rgba(163,131,94,.14)}
+.konfee-body{position:absolute;display:flex;flex-direction:column;justify-content:space-between;padding:5px 8px}
 .konfee-panel.is-cassette .konfee-body{left:28px;right:26px;top:28px;bottom:34px}
 .konfee-panel.is-mascot .konfee-body{left:44px;right:42px;top:44px;bottom:103px}
 .konfee-panel.is-plain .konfee-body{position:static;padding:0;background:transparent;box-shadow:none}
 @keyframes konfee-pop{from{opacity:0;transform:translate(-50%,-100%) translateY(5px) scale(.96)}to{opacity:1;transform:translate(-50%,-100%) translateY(0) scale(1)}}
-.konfee-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.konfee-head{display:flex;align-items:center;justify-content:flex-end;gap:8px}
 .konfee-title{font-size:10px;letter-spacing:.16em;color:#ab8a68;font-weight:600;white-space:nowrap}
 .konfee-amount-row{display:flex;align-items:baseline;gap:3px;margin:3px 0 5px}
 .konfee-currency{font-size:13px;color:#8d7256;font-weight:600;transform:translateY(-1px)}
@@ -752,7 +752,6 @@
 						panelStyle === "cassette" ? h("img", { className: "konfee-logo", src: "/dsh-kon-fee-widget/ui/logo.png", alt: "" }) : null,
 						h("div", { className: "konfee-body" },
 							h("div", { className: "konfee-head" },
-								h("span", { className: "konfee-title" }, "轻音部 · 部费账本"),
 								h("span", { className: `konfee-tag ${peak.peak ? "is-peak" : "is-valley"}` }, peak.peak ? "高峰" : "谷价"),
 							),
 							h("div", { className: "konfee-amount-row" },
