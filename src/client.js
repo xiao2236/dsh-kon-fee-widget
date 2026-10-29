@@ -85,9 +85,11 @@
 .konfee-front{z-index:3}
 .konfee-seat{position:absolute;z-index:1;pointer-events:none}
 .konfee-seat canvas{width:100%;height:100%;image-rendering:pixelated;display:block}
-.konfee-panel{position:absolute;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%);min-width:190px;max-width:250px;padding:10px 13px;border-radius:14px;background:rgba(255,255,255,.97);color:#3a3340;border:1px solid rgba(70,55,80,.12);box-shadow:0 12px 30px rgba(40,30,55,.22);pointer-events:none;z-index:9;animation:konfee-pop .18s cubic-bezier(.2,1.4,.4,1)}
+.konfee-panel{position:fixed;transform:translate(-50%,-100%);min-width:190px;max-width:250px;padding:10px 13px;border-radius:14px;background:rgba(255,255,255,.97);color:#3a3340;border:1px solid rgba(70,55,80,.12);box-shadow:0 12px 30px rgba(40,30,55,.22);pointer-events:none;z-index:2147481910;animation:konfee-pop .18s cubic-bezier(.2,1.4,.4,1)}
+.konfee-panel.is-below{transform:translate(-50%,0)}
 .konfee-panel:after{content:"";position:absolute;left:50%;top:100%;width:10px;height:10px;margin-left:-6px;margin-top:-5px;background:inherit;border-right:1px solid rgba(70,55,80,.12);border-bottom:1px solid rgba(70,55,80,.12);transform:rotate(45deg)}
-@keyframes konfee-pop{from{opacity:0;transform:translateX(-50%) translateY(4px) scale(.96)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
+.konfee-panel.is-below:after{top:-6px;margin-top:0;transform:rotate(-135deg)}
+@keyframes konfee-pop{from{opacity:0;transform:translate(-50%,-100%) scale(.96)}to{opacity:1;transform:translate(-50%,-100%) scale(1)}}
 .konfee-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
 .konfee-label{font-size:10px;letter-spacing:.14em;color:#9a91a2}
 .konfee-amount{font-size:22px;font-weight:650;line-height:1.2;font-variant-numeric:tabular-nums}
@@ -231,8 +233,8 @@
 				return assets;
 			}
 
-			/** 桌面背景：desk00 是 4 帧横向动画。 */
-			function TableBack({ image }) {
+			/** 桌面背景：desk00 是 4 帧横向动画，按座位段抽切后拼起来。 */
+			function TableBack({ image, layout }) {
 				const ref = useRef(null);
 				useEffect(() => {
 					const canvas = ref.current;
@@ -244,8 +246,14 @@
 					let last = performance.now();
 					let frame = 0;
 					const draw = () => {
-						context.clearRect(0, 0, TABLE.width, TABLE.height);
-						context.drawImage(image, (frame % frames) * TABLE.width, 0, TABLE.width, TABLE.height, 0, 0, TABLE.width, TABLE.height);
+						context.clearRect(0, 0, layout.width, TABLE.height);
+						for (const segment of layout.segments) {
+							context.drawImage(
+								image,
+								(frame % frames) * TABLE.width + segment.from, 0, segment.width, TABLE.height,
+								segment.from - segment.offset, 0, segment.width, TABLE.height,
+							);
+						}
 					};
 					const tick = (now) => {
 						acc += now - last;
@@ -261,21 +269,27 @@
 					draw();
 					raf = requestAnimationFrame(tick);
 					return () => cancelAnimationFrame(raf);
-				}, [image]);
-				return h("canvas", { ref, width: TABLE.width, height: TABLE.height, className: "konfee-back", "aria-hidden": "true" });
+				}, [image, layout]);
+				return h("canvas", { ref, width: layout.width, height: TABLE.height, className: "konfee-back", "aria-hidden": "true" });
 			}
 
-			/** 前景：desk01 盖在人物前面。 */
-			function TableFront({ image }) {
+			/** 前景：desk01 盖在人物前面，同样按座位段抽切。 */
+			function TableFront({ image, layout }) {
 				const ref = useRef(null);
 				useEffect(() => {
 					const canvas = ref.current;
 					if (!canvas || !image) return;
 					const context = canvas.getContext("2d");
-					context.clearRect(0, 0, TABLE.width, TABLE.height);
-					context.drawImage(image, 0, 0);
-				}, [image]);
-				return h("canvas", { ref, width: TABLE.width, height: TABLE.height, className: "konfee-front", "aria-hidden": "true" });
+					context.clearRect(0, 0, layout.width, TABLE.height);
+					for (const segment of layout.segments) {
+						context.drawImage(
+							image,
+							segment.from, 0, segment.width, TABLE.height,
+							segment.from - segment.offset, 0, segment.width, TABLE.height,
+						);
+					}
+				}, [image, layout]);
+				return h("canvas", { ref, width: layout.width, height: TABLE.height, className: "konfee-front", "aria-hidden": "true" });
 			}
 
 			/** 座位立绘：中间三人循环播放坐姿动画，两侧静态。 */
@@ -322,8 +336,12 @@
 				const settings = useSettings();
 				const balance = useBalance(settings);
 				const assets = useTableAssets();
+				// 座位段：全展示 = 五段；关掉后按勾选抽掉对应段，桌子跟着变短
+				const selected = TABLE.seats.filter((seat) => settings.characters[seat.id]).map((seat) => seat.id);
+				const seatIds = settings.showAll ? TABLE.seats.map((seat) => seat.id) : selected;
+				const layout = Core.layoutSegments(seatIds.length ? seatIds : null);
 				const size = {
-					width: Math.round(TABLE.width * settings.scale),
+					width: Math.round(layout.width * settings.scale),
 					height: Math.round(TABLE.height * settings.scale),
 				};
 				const [pos, setPos] = useState(() => settings.pos || Core.defaultPosition(size, { width: window.innerWidth, height: window.innerHeight }));
@@ -349,6 +367,14 @@
 					window.addEventListener("resize", onResize);
 					return () => window.removeEventListener("resize", onResize);
 				}, [settings.snap, size.width, size.height]);
+
+				// 座位段变化（桌子变短/变长）后把位置重新夹回可视范围
+				useEffect(() => {
+					setPos((previous) => {
+						const next = Core.snapToEdge(previous, size, { width: window.innerWidth, height: window.innerHeight }, { enabled: settings.snap, threshold: SNAP_DISTANCE });
+						return { x: next.x, y: next.y };
+					});
+				}, [layout.width, settings.scale]);
 
 				// 账本开着的时候每分钟刷新一次峰谷状态
 				useEffect(() => {
@@ -454,13 +480,20 @@
 					}
 				};
 
-				const seats = TABLE.seats.filter((seat) => settings.showAll || settings.characters[seat.id]);
+				const PANEL_HALF = 105;
+				const panelLeft = Core.clamp(
+					pos.x + size.width / 2,
+					8 + PANEL_HALF,
+					Math.max(8 + PANEL_HALF, window.innerWidth - 8 - PANEL_HALF),
+				);
+				const panelBelow = pos.y < 150;
 
 				return h("div", { className: "konfee-root" },
 					styleElement(),
 					h("div", {
 						className: `konfee-table${pressing ? " is-press" : ""}${dragging ? " is-drag" : ""}`,
 						"data-konfee": "table",
+						"data-width": layout.width,
 						"data-state": balance.ok ? (warn ? "warn" : "ok") : balance.configMissing ? "no-key" : "error",
 						"data-peak": peak.peak ? "peak" : "valley",
 						style: {
@@ -480,33 +513,40 @@
 						onKeyDown,
 					},
 						h("div", { className: "konfee-stage" },
-							assets ? h(TableBack, { image: assets.desk00 }) : null,
-							...seats.map((seat) => h("div", {
-								key: seat.id,
+							assets ? h(TableBack, { image: assets.desk00, layout }) : null,
+							...layout.segments.map((segment) => h("div", {
+								key: segment.id,
 								className: "konfee-seat",
-								"data-char": seat.id,
+								"data-char": segment.id,
 								style: {
-									left: `${Math.round(seat.x * settings.scale)}px`,
-									top: `${Math.round(TABLE.charTop * settings.scale)}px`,
-									width: `${Math.round((TABLE.widths[seat.id] || TABLE.charWidth) * settings.scale)}px`,
+									left: `${Math.round(segment.x * settings.scale)}px`,
+									top: `${Math.round(segment.y * settings.scale)}px`,
+									width: `${Math.round((TABLE.widths[segment.id] || TABLE.charWidth) * settings.scale)}px`,
 									height: `${Math.round(TABLE.charHeight * settings.scale)}px`,
 								},
-							}, assets ? h(SeatSprite, { id: seat.id, image: assets.seats[seat.id] }) : null)),
-							assets ? h(TableFront, { image: assets.desk01 }) : null,
-							open ? h("div", { className: "konfee-panel", "data-konfee": "panel" },
-								h("div", { className: "konfee-row" },
-									h("span", { className: "konfee-label" }, "部费"),
-									h("b", { className: `konfee-amount tone-${tone}` }, amountText),
-								),
-								h("div", { className: "konfee-meta" },
-									h("span", { className: `konfee-tag ${peak.peak ? "is-peak" : "is-valley"}` }, peak.peak ? "高峰" : "谷时"),
-									h("span", null, peak.peak ? `${peak.detail} 计价较高` : peak.detail),
-								),
-								h("div", { className: "konfee-line" }, line),
-								h("div", { className: `konfee-status tone-${status.tone}` }, status.text),
-							) : null,
+							}, assets ? h(SeatSprite, { id: segment.id, image: assets.seats[segment.id] }) : null)),
+							assets ? h(TableFront, { image: assets.desk01, layout }) : null,
 						),
 					),
+					open ? h("div", {
+						className: `konfee-panel${panelBelow ? " is-below" : ""}`,
+						"data-konfee": "panel",
+						style: {
+							left: `${Math.round(panelLeft)}px`,
+							top: `${Math.round(panelBelow ? pos.y + size.height + 12 : pos.y - 10)}px`,
+						},
+					},
+						h("div", { className: "konfee-row" },
+							h("span", { className: "konfee-label" }, "部费"),
+							h("b", { className: `konfee-amount tone-${tone}` }, amountText),
+						),
+						h("div", { className: "konfee-meta" },
+							h("span", { className: `konfee-tag ${peak.peak ? "is-peak" : "is-valley"}` }, peak.peak ? "高峰" : "谷时"),
+							h("span", null, peak.peak ? `${peak.detail} 计价较高` : peak.detail),
+						),
+						h("div", { className: "konfee-line" }, line),
+						h("div", { className: `konfee-status tone-${status.tone}` }, status.text),
+					) : null,
 				);
 			}
 
@@ -543,14 +583,14 @@
 						h("div", { className: "konfee-set-row" },
 							h("div", { className: "konfee-set-name" },
 								h("b", null, "全展示"),
-								h("small", null, "五个人都坐上桌；关掉后按下面单独勾选"),
+								h("small", null, "五个人都坐上桌；关掉后按下面单独勾选，桌子会跟着缩短"),
 							),
 							h(FeeSwitch, { checked: settings.showAll, onChange: () => updateSettings({ showAll: !settings.showAll }), label: "全展示" }),
 						),
 						h("div", { className: "konfee-set-row" },
 							h("div", { className: "konfee-set-name" },
 								h("b", null, "坐桌上的人"),
-								h("small", null, settings.showAll ? "「全展示」开着，这里暂时不能单独改" : "勾选谁坐在桌上"),
+								h("small", null, settings.showAll ? "「全展示」开着，这里暂时不能单独改" : "勾选谁坐在桌上；不勾的人连带自己那一段桌子一起收起"),
 							),
 							h("div", { className: "konfee-chars" },
 								...Core.ROSTER.map((member) => h("button", {

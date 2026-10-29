@@ -85,6 +85,51 @@
 	// DeepSeek 计价窗口（北京时间，工作日）：9:00–12:00、14:00–18:00 为高峰。
 	const PEAK_WINDOWS = [[9 * 60, 12 * 60], [14 * 60, 18 * 60]];
 
+	/**
+	 * 座位段的切分边界：相邻两个座位中心的中间，最后补上场景宽度。
+	 * 五个人全坐时正好还原成 288 宽的整张桌子；少人时把对应那一段抽掉、后面整体左移。
+	 */
+	function segmentBounds() {
+		const centers = TABLE.seats.map((seat) => seat.x + (TABLE.widths[seat.id] || TABLE.charWidth) / 2);
+		const bounds = [0];
+		for (let index = 1; index < centers.length; index += 1) {
+			bounds.push(Math.round((centers[index - 1] + centers[index]) / 2));
+		}
+		bounds.push(TABLE.width);
+		return bounds;
+	}
+
+	/**
+	 * 按可见座位把桌子切成若干段，并给出每段的源区间 [from,to)、目标偏移 offset。
+	 * 只画可见段时，容器宽度 = TABLE.width - 被抽掉的总宽。
+	 */
+	function layoutSegments(seatIds) {
+		const bounds = segmentBounds();
+		const wanted = Array.isArray(seatIds) ? new Set(seatIds) : null;
+		const segments = [];
+		let removed = 0;
+		TABLE.seats.forEach((seat, index) => {
+			const from = bounds[index];
+			const to = bounds[index + 1];
+			const width = to - from;
+			const visible = !wanted || wanted.has(seat.id);
+			if (!visible) {
+				removed += width;
+				return;
+			}
+			segments.push({
+				id: seat.id,
+				from,
+				to,
+				width,
+				offset: removed,
+				x: seat.x - removed,
+				y: TABLE.charTop,
+			});
+		});
+		return { segments, width: Math.max(1, TABLE.width - removed), bounds };
+	}
+
 	const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 	const pad2 = (value) => String(value).padStart(2, "0");
 	const clock = (minutes) => `${pad2(Math.floor(minutes / 60))}:${pad2(minutes % 60)}`;
@@ -237,6 +282,8 @@
 		ROSTER,
 		LINES,
 		PEAK_WINDOWS,
+		segmentBounds,
+		layoutSegments,
 		clamp,
 		formatMoney,
 		parseBalance,

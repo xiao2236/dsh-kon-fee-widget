@@ -118,3 +118,24 @@ test("茶桌几何：五个座位、坐标与帧宽", () => {
 	assert.equal(Core.FRAME.columns, 4);
 	assert.deepEqual(Core.ANIM.yui, [0, 4, 5, 6, 7]);
 });
+
+test("按座位切段：五人全坐还原整张桌子，抽掉一段后宽度和偏移正确", () => {
+	assert.deepEqual(Core.segmentBounds(), [0, 68, 124, 176, 232, 288]);
+
+	const all = Core.layoutSegments(Core.TABLE.seats.map((seat) => seat.id));
+	assert.equal(all.width, 288);
+	assert.equal(all.segments.length, 5);
+	assert.deepEqual(all.segments.map((segment) => segment.offset), [0, 0, 0, 0, 0]);
+	assert.deepEqual(all.segments.map((segment) => segment.x), [0, 64, 112, 176, 224]);
+	assert.deepEqual(all.segments.map((segment) => segment.width), [68, 56, 52, 56, 56]);
+
+	const withoutYui = Core.layoutSegments(["mio", "ritsu", "tsumugi", "azusa"]);
+	assert.equal(withoutYui.width, 288 - 52, "抽掉唯那一段（52 宽）");
+	assert.deepEqual(withoutYui.segments.map((segment) => segment.id), ["mio", "ritsu", "tsumugi", "azusa"]);
+	assert.equal(withoutYui.segments.find((segment) => segment.id === "tsumugi").offset, 52);
+	assert.equal(withoutYui.segments.find((segment) => segment.id === "azusa").x, 224 - 52, "后面的人跟着左移");
+
+	const all2 = Core.layoutSegments(null);
+	assert.equal(all2.segments.length, 5, "null = 不做筛选，保留整张桌子");
+	assert.equal(all2.width, 288);
+});
