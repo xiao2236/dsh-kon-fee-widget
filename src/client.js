@@ -129,15 +129,17 @@
 .konfee-seat canvas{width:100%;height:100%;image-rendering:pixelated;display:block}
 .konfee-gear{position:absolute;right:2px;top:2px;z-index:8;width:22px;height:22px;padding:0;border:1px solid rgba(163,131,94,.4);border-radius:50%;background:rgba(255,253,246,.88);box-shadow:0 2px 6px rgba(60,45,30,.18);color:#8a6a4a;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.7;transition:opacity .15s,transform .2s}
 .konfee-gear:hover{opacity:1;transform:rotate(35deg)}
-.konfee-menu{position:absolute;right:0;bottom:calc(100% + 6px);z-index:9;width:196px;padding:10px 12px;border-radius:12px;background:rgba(255,253,246,.98);border:1px solid rgba(163,131,94,.35);box-shadow:0 14px 30px rgba(60,45,30,.24);font-size:12px;color:#4a3d33}
+.konfee-menu{position:absolute;right:0;bottom:calc(100% + 6px);z-index:9;width:210px;padding:8px 10px;border-radius:12px;background:rgba(255,253,246,.98);border:1px solid rgba(163,131,94,.35);box-shadow:0 14px 30px rgba(60,45,30,.24);font-size:12px;color:#4a3d33}
 .konfee-menu.is-below{top:calc(100% + 6px);bottom:auto}
-.konfee-menu-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.konfee-menu-row{display:flex;align-items:center;gap:7px;margin-bottom:6px}
 .konfee-menu-row:last-child{margin-bottom:0}
 .konfee-menu-row input[type=range]{flex:1;min-width:0;accent-color:#8a6aa8}
 .konfee-menu-label{color:#a4886b;flex:none}
 .konfee-menu-value{width:38px;text-align:right;flex:none;font-variant-numeric:tabular-nums;color:#8a6a4a}
-.konfee-menu-btn{width:100%;border:1px solid rgba(127,127,127,.3);background:transparent;border-radius:8px;padding:5px 8px;font:inherit;font-size:12px;cursor:pointer;color:inherit}
+.konfee-menu-btn{flex:1;border:1px solid rgba(127,127,127,.3);background:transparent;border-radius:8px;padding:4px 8px;font:inherit;font-size:11.5px;cursor:pointer;color:inherit;white-space:nowrap}
 .konfee-menu-btn:hover{background:rgba(127,127,127,.08)}
+.konfee-menu-toggle{flex:none;border:1px solid rgba(124,90,166,.45);background:rgba(124,90,166,.1);color:#6c4c94;border-radius:999px;padding:3px 10px;font:inherit;font-size:11px;cursor:pointer}
+.konfee-menu-toggle.is-off{border-color:rgba(127,127,127,.3);background:transparent;color:#9b7f61}
 .konfee-panel{position:fixed;transform:translate(-50%,-100%);box-sizing:border-box;border-radius:12px;color:#4a3d33;box-shadow:0 18px 38px rgba(60,45,30,.3);pointer-events:none;z-index:2147481910;animation:konfee-pop .2s cubic-bezier(.2,1.5,.45,1)}
 .konfee-panel.is-below{transform:translate(-50%,0)}
 .konfee-panel.is-cassette{width:260px;height:170px;background:url(/dsh-kon-fee-widget/ui/cassette.png) center/100% 100% no-repeat}
@@ -808,6 +810,14 @@
 								h("span", { className: "konfee-menu-value" }, `${scaleDraft.toFixed(2)}×`),
 							),
 							h("div", { className: "konfee-menu-row" },
+								h("span", { className: "konfee-menu-label" }, "声音"),
+								h("button", {
+									type: "button",
+									className: `konfee-menu-toggle${config.voice === false ? " is-off" : ""}`,
+									"aria-pressed": config.voice !== false,
+									"data-konfee": "voice-toggle",
+									onClick: () => updateConfig({ voice: config.voice === false }),
+								}, config.voice === false ? "关闭" : "开启"),
 								h("button", { type: "button", className: "konfee-menu-btn", onClick: goBottomRight }, "回到右下角"),
 							),
 						) : null,
