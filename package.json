@@ -1,6 +1,6 @@
 {
   "name": "dsh-kon-fee-widget",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "DSH 上的《轻音少女》部费挂件：用原版茶桌当底座，五个人坐满；点一下才弹账本——DeepSeek 余额 + 峰谷时段 + 更新时间。",
   "type": "module",
   "main": "lib/index.js",
