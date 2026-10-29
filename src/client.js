@@ -162,7 +162,7 @@ const EGG_BEAT_MS = 1600;
 .konfee-amount.tone-warn{color:#c4563f}
 .konfee-amount.tone-error{color:#a0836a;font-size:15px;font-weight:600;transform:translateY(-2px)}
 .konfee-meter{margin:0}
-.konfee-today{margin:0 0 4px;font-size:10.5px;color:#8a6a4a;font-variant-numeric:tabular-nums}
+.konfee-today{margin:0 0 7px;font-size:15px;font-weight:600;color:#6f5a42;font-variant-numeric:tabular-nums}
 .konfee-today-tokens{opacity:.6}
 .konfee-schedule{margin:0 0 4px;font-size:9.5px;color:#a4886b;line-height:1.5}
 .konfee-schedule-note{opacity:.7}
