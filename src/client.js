@@ -135,11 +135,13 @@
 .konfee-panel.is-below{transform:translate(-50%,0)}
 .konfee-panel.is-cassette{width:300px;height:196px;background:url(/dsh-kon-fee-widget/ui/cassette.png) center/100% 100% no-repeat}
 .konfee-panel.is-mascot{width:355px;height:266px;background:url(/dsh-kon-fee-widget/ui/mascot.png) center/100% 100% no-repeat}
+.konfee-panel.is-cassette-full{width:355px;height:266px;background:url(/dsh-kon-fee-widget/ui/cassette-full.png) center/100% 100% no-repeat}
 .konfee-panel.is-plain{width:250px;padding:11px 14px 10px;background:linear-gradient(180deg,#fffdf8 0%,#fdf6e9 100%);border:1px solid rgba(163,131,94,.34)}
 .konfee-logo{position:absolute;right:10px;bottom:4px;width:52px;height:auto;opacity:.9;pointer-events:none}
 .konfee-body{position:absolute;display:flex;flex-direction:column;justify-content:space-between;padding:5px 8px}
 .konfee-panel.is-cassette .konfee-body{left:28px;right:26px;top:28px;bottom:34px}
 .konfee-panel.is-mascot .konfee-body{left:44px;right:42px;top:44px;bottom:103px}
+.konfee-panel.is-cassette-full .konfee-body{left:100px;right:92px;top:82px;bottom:72px}
 .konfee-panel.is-plain .konfee-body{position:static;padding:0;background:transparent;box-shadow:none}
 @keyframes konfee-pop{from{opacity:0;transform:translate(-50%,-100%) translateY(5px) scale(.96)}to{opacity:1;transform:translate(-50%,-100%) translateY(0) scale(1)}}
 .konfee-head{display:flex;align-items:center;justify-content:flex-end;gap:8px}
@@ -644,7 +646,7 @@
 				};
 
 				const panelStyle = config.bubbleStyle || "cassette";
-				const PANEL_SIZES = { cassette: { width: 300, height: 196 }, mascot: { width: 355, height: 266 }, plain: { width: 250, height: 160 } };
+				const PANEL_SIZES = { cassette: { width: 300, height: 196 }, "cassette-full": { width: 355, height: 266 }, mascot: { width: 355, height: 266 }, plain: { width: 250, height: 160 } };
 				const panelSize = PANEL_SIZES[panelStyle] || PANEL_SIZES.cassette;
 				const PANEL_HALF = Math.round(panelSize.width / 2) + 8;
 				const panelLeft = Core.clamp(
