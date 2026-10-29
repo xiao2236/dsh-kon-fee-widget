@@ -162,6 +162,15 @@ test("双击彩蛋：单人只出本人台词，组合按概率触发，键顺�
 		assert.ok(singlePool.has(line), "没有组合命中时退回单人的台词");
 	}
 
+	// 法定节假日全天谷价：国庆 10-01 10:00 北京 = 谷时；10-08 同日同时刻 = 高峰
+	const holiday = Core.priceWindow(new Date("2026-10-01T02:00:00Z"));
+	assert.equal(holiday.peak, false);
+	assert.match(holiday.detail, /节假日/);
+	const workday = Core.priceWindow(new Date("2026-10-08T02:00:00Z"));
+	assert.equal(workday.peak, true);
+	const spring = Core.priceWindow(new Date("2026-02-16T02:00:00Z"));
+	assert.equal(spring.peak, false);
+
 	// 组合对白按 ｜ 拆成一人一句的节拍
 	assert.deepEqual(Core.eggBeats({ zh: "澪：甲｜律：乙", ja: "" }), ["澪：甲", "律：乙"]);
 	assert.deepEqual(Core.eggBeats({ zh: "单人一句", ja: "" }), ["单人一句"]);

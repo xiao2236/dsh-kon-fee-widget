@@ -251,18 +251,37 @@
 	const beijingDayStart = (ms) => Math.floor((ms + BEIJING_OFFSET) / DAY) * DAY - BEIJING_OFFSET;
 	const beijingDayOfWeek = (ms) => new Date(ms + BEIJING_OFFSET).getUTCDay();
 	const isWeekend = (day) => day === 0 || day === 6;
+	/** 北京时间日期键 YYYY-MM-DD。 */
+	const beijingDayKey = (ms) => new Date(ms + BEIJING_OFFSET).toISOString().slice(0, 10);
+
+	// 法定节假日全天谷价（官方计费说明：周末与中国法定节假日全天都是空闲时段）。
+	// 只列放假日期；调休上班日都落在周末，本来就按谷价算。
+	// ⚠️ 每年 11 月国务院发布次年安排后，要在这里补下一年的日期。
+	const HOLIDAY_VALLEY = {
+		"2026-01-01": 1, "2026-01-02": 1, "2026-01-03": 1, // 元旦
+		"2026-02-15": 1, "2026-02-16": 1, "2026-02-17": 1, "2026-02-18": 1, "2026-02-19": 1, // 春节
+		"2026-02-20": 1, "2026-02-21": 1, "2026-02-22": 1, "2026-02-23": 1,
+		"2026-04-04": 1, "2026-04-05": 1, "2026-04-06": 1, // 清明
+		"2026-05-01": 1, "2026-05-02": 1, "2026-05-03": 1, "2026-05-04": 1, "2026-05-05": 1, // 劳动节
+		"2026-06-19": 1, "2026-06-20": 1, "2026-06-21": 1, // 端午
+		"2026-09-25": 1, "2026-09-26": 1, "2026-09-27": 1, // 中秋
+		"2026-10-01": 1, "2026-10-02": 1, "2026-10-03": 1, "2026-10-04": 1, // 国庆
+		"2026-10-05": 1, "2026-10-06": 1, "2026-10-07": 1,
+	};
+	const isHolidayValley = (ms) => Boolean(HOLIDAY_VALLEY[beijingDayKey(ms)]);
 
 	/**
 	 * 找 now 前后两次计价切换时刻（epoch ms）。
-	 * 只有工作日有高峰窗口；周末整天是谷时，所以「上一次切换」会落在周五 18:00，
-	 * 「下一次切换」落在下周一 09:00。
+	 * 只有工作日有高峰窗口；周末与法定节假日整天是谷时，
+	 * 所以「上一次切换」会落在前一个工作日 18:00，「下一次」落在下一个工作日 09:00。
 	 */
 	function priceBoundaries(now) {
 		const today = beijingDayStart(now);
 		const cuts = [];
-		for (let offset = -7; offset <= 8; offset += 1) {
+		for (let offset = -20; offset <= 20; offset += 1) {
 			const dayStart = today + offset * DAY;
 			if (isWeekend(beijingDayOfWeek(dayStart))) continue;
+			if (isHolidayValley(dayStart + 12 * 60 * MINUTE)) continue;
 			for (const [start, end] of PEAK_WINDOWS) {
 				cuts.push({ at: dayStart + start * MINUTE, peak: true });
 				cuts.push({ at: dayStart + end * MINUTE, peak: false });
@@ -306,11 +325,12 @@
 		const day = shifted.getUTCDay(); // 0 = 周日
 		const minutes = shifted.getUTCHours() * 60 + shifted.getUTCMinutes();
 		const weekend = isWeekend(day);
+		const holiday = isHolidayValley(now);
 		const window = PEAK_WINDOWS.find(([start, end]) => minutes >= start && minutes < end) || null;
-		const peak = !weekend && Boolean(window);
+		const peak = !weekend && !holiday && Boolean(window);
 		const detail = peak
 			? `${clock(window[0])}–${clock(window[1])}`
-			: weekend ? "周末全天谷价" : "现在计价更低";
+			: weekend ? "周末全天谷价" : holiday ? "法定节假日全天谷价" : "现在计价更低";
 		const { prev, next } = priceBoundaries(now);
 		const span = prev && next ? next.at - prev.at : 0;
 		const progress = span > 0 ? clamp((now - prev.at) / span, 0, 1) : 0;
