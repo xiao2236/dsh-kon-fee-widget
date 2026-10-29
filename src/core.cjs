@@ -134,6 +134,8 @@
 	const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 	const pad2 = (value) => String(value).padStart(2, "0");
 	const clock = (minutes) => `${pad2(Math.floor(minutes / 60))}:${pad2(minutes % 60)}`;
+	// 给界面用的时段文案：09:00–12:00 · 14:00–18:00
+	const PEAK_TEXT = PEAK_WINDOWS.map(([start, end]) => `${clock(start)}–${clock(end)}`).join(" · ");
 	const MINUTE = 60 * 1000;
 	const DAY = 24 * 60 * MINUTE;
 	const BEIJING_OFFSET = 8 * 3600 * 1000;
@@ -189,7 +191,7 @@
 		if (Number.isNaN(stamp.getTime())) {
 			return {
 				peak: false, weekend: false, minutes: 0, label: "谷时", detail: "现在计价更低",
-				window: "", nextAt: 0, nextPeak: false, remainMs: 0, progress: 0, nextText: "",
+				window: "", schedule: PEAK_TEXT, nextAt: 0, nextPeak: false, remainMs: 0, progress: 0, nextText: "",
 			};
 		}
 		const now = stamp.getTime();
@@ -214,6 +216,7 @@
 			label: peak ? "高峰" : "谷时",
 			detail,
 			window: window ? `${clock(window[0])}–${clock(window[1])}` : "",
+			schedule: PEAK_TEXT,
 			nextAt: next ? next.at : 0,
 			nextPeak,
 			remainMs,
@@ -370,6 +373,7 @@
 		ROSTER,
 		LINES,
 		PEAK_WINDOWS,
+		PEAK_TEXT,
 		segmentBounds,
 		layoutSegments,
 		frameBounds,

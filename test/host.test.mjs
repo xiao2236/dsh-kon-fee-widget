@@ -197,54 +197,75 @@ test("上游失败但没有账号：request-failed", async (t) => {
 });
 
 test("每轮消耗：assistant/message 聚合 + turn/end 结算", async () => {
-	const ctx = makeCtx({});
-	assert.equal(typeof ctx.handlers["session/event"], "function", "订阅了会话事件流");
-	const emit = (session, event) => ctx.handlers["session/event"](session, event);
+test("每轮消耗：assistant/message 聚合 + turn/end 结算 + 今天合计", async () => {
+	const { mkdtemp, rm } = await import("node:fs/promises");
+	const { tmpdir } = await import("node:os");
+	const { join } = await import("node:path");
+	const dir = await mkdtemp(join(tmpdir(), "kon-fee-turn-"));
+	const previous = process.env.KON_FEE_CONFIG;
+	process.env.KON_FEE_CONFIG = join(dir, "kon-fee-widget.json");
+	try {
+		const ctx = makeCtx({});
+		assert.equal(typeof ctx.handlers["session/event"], "function", "订阅了会话事件流");
+		const emit = (session, event) => ctx.handlers["session/event"](session, event);
 
-	const empty = await callRoute(ctx.handler, "/dsh-kon-fee-widget/last-turn");
-	assert.equal(empty.json.ok, true);
-	assert.equal(empty.json.turn, null, "还没跑过对话时没有记录");
+		const empty = await callRoute(ctx.handler, "/dsh-kon-fee-widget/last-turn");
+		assert.equal(empty.json.ok, true);
+		assert.equal(empty.json.turn, null, "还没跑过对话时没有记录");
+		assert.equal(empty.json.today.turns, 0, "今天还没花");
 
-	// Flash：命中 2000、未命中 1000、输出 500
-	emit({ id: "s1" }, {
-		type: "assistant/message",
-		data: { turn: 1, usage: { inputTokens: 1000, cacheReadTokens: 2000, outputTokens: 500 }, message: { source: { model: "deepseek-v4-flash" } } },
-	});
-	emit({ id: "s1" }, { type: "turn/end" });
-	const first = (await callRoute(ctx.handler, "/dsh-kon-fee-widget/last-turn")).json.turn;
-	assert.equal(first.tokens, 3500, "token 总数 = 命中 + 未命中 + 输出");
-	assert.equal(first.model, "deepseek-v4-flash");
-	const price = first.peak ? { hit: 0.04, miss: 2, out: 8 } : { hit: 0.02, miss: 1, out: 4 };
-	const expected = (2000 / 1e6) * price.hit + (1000 / 1e6) * price.miss + (500 / 1e6) * price.out;
-	assert.ok(Math.abs(first.amount - expected) < 1e-9, `金额按峰谷价算（${first.amount} ≈ ${expected}）`);
+		// Flash：命中 2000、未命中 1000、输出 500
+		emit({ id: "s1" }, {
+			type: "assistant/message",
+			data: { turn: 1, usage: { inputTokens: 1000, cacheReadTokens: 2000, outputTokens: 500 }, message: { source: { model: "deepseek-v4-flash" } } },
+		});
+		emit({ id: "s1" }, { type: "turn/end" });
+		const firstBody = (await callRoute(ctx.handler, "/dsh-kon-fee-widget/last-turn")).json;
+		const first = firstBody.turn;
+		assert.equal(first.tokens, 3500, "token 总数 = 命中 + 未命中 + 输出");
+		assert.equal(first.model, "deepseek-v4-flash");
+		const price = first.peak ? { hit: 0.04, miss: 2, out: 8 } : { hit: 0.02, miss: 1, out: 4 };
+		const expected = (2000 / 1e6) * price.hit + (1000 / 1e6) * price.miss + (500 / 1e6) * price.out;
+		assert.ok(Math.abs(first.amount - expected) < 1e-9, `金额按峰谷价算（${first.amount} ≈ ${expected}）`);
+		assert.equal(firstBody.today.turns, 1, "今天记了 1 轮");
+		assert.ok(Math.abs(firstBody.today.amount - first.amount) < 1e-9, "今天合计 = 第一轮");
 
-	// 第二轮（Pro，100 万未命中）覆盖 lastTurn
-	emit({ id: "s1" }, {
-		type: "assistant/message",
-		data: { turn: 2, usage: { inputTokens: 1_000_000, cacheReadTokens: 0, outputTokens: 0 }, message: { source: { model: "deepseek-v4-pro" } } },
-	});
-	emit({ id: "s1" }, { type: "turn/end" });
-	const second = (await callRoute(ctx.handler, "/dsh-kon-fee-widget/last-turn")).json.turn;
-	assert.equal(second.tokens, 1_000_000);
-	assert.equal(second.model, "deepseek-v4-pro");
-	assert.ok(second.amount > first.amount, "Pro 更贵");
-	assert.ok(second.amount >= 4.5, "100 万未命中至少 4.5 元起");
+		// 第二轮（Pro，100 万未命中）覆盖 lastTurn，并累加到今天
+		emit({ id: "s1" }, {
+			type: "assistant/message",
+			data: { turn: 2, usage: { inputTokens: 1_000_000, cacheReadTokens: 0, outputTokens: 0 }, message: { source: { model: "deepseek-v4-pro" } } },
+		});
+		emit({ id: "s1" }, { type: "turn/end" });
+		const secondBody = (await callRoute(ctx.handler, "/dsh-kon-fee-widget/last-turn")).json;
+		const second = secondBody.turn;
+		assert.equal(second.tokens, 1_000_000);
+		assert.equal(second.model, "deepseek-v4-pro");
+		assert.ok(second.amount > first.amount, "Pro 更贵");
+		assert.equal(secondBody.today.turns, 2);
+		assert.ok(Math.abs(secondBody.today.amount - (first.amount + second.amount)) < 1e-6, "两轮金额累加");
 
-	// 中途换轮：还没 turn/end 又来了新 turn，旧的一轮先结算
-	emit({ id: "s1" }, {
-		type: "assistant/message",
-		data: { turn: 3, usage: { inputTokens: 100, cacheReadTokens: 0, outputTokens: 0 }, message: { source: { model: "deepseek-v4-flash" } } },
-	});
-	emit({ id: "s1" }, {
-		type: "assistant/message",
-		data: { turn: 4, usage: { inputTokens: 200, cacheReadTokens: 0, outputTokens: 0 }, message: { source: { model: "deepseek-v4-flash" } } },
-	});
-	const afterShift = (await callRoute(ctx.handler, "/dsh-kon-fee-widget/last-turn")).json.turn;
-	assert.ok(afterShift, "换轮时旧轮已结算");
-	// 第三轮结算后应该是 turn 4 的 200
-	emit({ id: "s1" }, { type: "turn/end" });
-	const last = (await callRoute(ctx.handler, "/dsh-kon-fee-widget/last-turn")).json.turn;
-	assert.equal(last.tokens, 200);
+		// 中途换轮：还没 turn/end 又来了新 turn，旧的一轮先结算
+		emit({ id: "s1" }, {
+			type: "assistant/message",
+			data: { turn: 3, usage: { inputTokens: 100, cacheReadTokens: 0, outputTokens: 0 }, message: { source: { model: "deepseek-v4-flash" } } },
+		});
+		emit({ id: "s1" }, {
+			type: "assistant/message",
+			data: { turn: 4, usage: { inputTokens: 200, cacheReadTokens: 0, outputTokens: 0 }, message: { source: { model: "deepseek-v4-flash" } } },
+		});
+		const afterShift = (await callRoute(ctx.handler, "/dsh-kon-fee-widget/last-turn")).json.turn;
+		assert.ok(afterShift, "换轮时旧轮已结算");
+		// 第三轮结算后应该是 turn 4 的 200
+		emit({ id: "s1" }, { type: "turn/end" });
+		const last = (await callRoute(ctx.handler, "/dsh-kon-fee-widget/last-turn")).json;
+		assert.equal(last.turn.tokens, 200);
+		assert.ok(last.today.turns >= 4, "今天累计到 4 轮以上");
+	} finally {
+		if (previous === undefined) delete process.env.KON_FEE_CONFIG;
+		else process.env.KON_FEE_CONFIG = previous;
+		await rm(dir, { recursive: true, force: true });
+	}
+});
 });
 
 test("静态素材路由仍然可用，非本插件前缀返回 404", async () => {

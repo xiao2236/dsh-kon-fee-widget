@@ -104,6 +104,8 @@ test("峰谷倒计时：距下一次切换的时刻与进度", () => {
 	assert.equal(Core.formatCountdown(42 * 60 * 1000), "42 分钟");
 	assert.equal(Core.formatCountdown((2 * 60 + 5) * 60 * 1000), "2 小时 5 分");
 	assert.equal(Core.formatCountdown(3 * 3600 * 1000), "3 小时");
+	assert.equal(Core.PEAK_TEXT, "09:00–12:00 · 14:00–18:00", "界面用的高峰时段文案");
+	assert.equal(Core.priceWindow(new Date(Date.UTC(2026, 9, 29, 4, 30))).schedule, Core.PEAK_TEXT);
 });
 
 test("吸附：靠近边缘才吸，越界夹回", () => {

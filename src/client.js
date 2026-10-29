@@ -132,6 +132,10 @@
 .konfee-amount.tone-warn{color:#c4563f}
 .konfee-amount.tone-error{color:#a0836a;font-size:15px;font-weight:600;transform:translateY(-2px)}
 .konfee-meter{margin:0}
+.konfee-today{margin:0 0 6px;font-size:11px;color:#8a6a4a;font-variant-numeric:tabular-nums}
+.konfee-today-tokens{opacity:.6}
+.konfee-schedule{margin:0 0 6px;font-size:10px;color:#a4886b;line-height:1.5}
+.konfee-schedule-note{opacity:.7}
 .konfee-track{height:5px;border-radius:999px;background:rgba(166,133,96,.18);overflow:hidden}
 .konfee-track i{display:block;height:100%;border-radius:999px;transition:width .6s ease}
 .konfee-track i.is-peak{background:linear-gradient(90deg,#eaa78f,#d0604a)}
@@ -260,9 +264,10 @@
 				return { ...state, refresh };
 			}
 
-			/** 轮询宿主记的「上一轮消耗」；只有出现新的 at 才算新的一轮。 */
+			/** 轮询宿主记的「上一轮消耗」和「今天合计」；只有出现新的 at 才算新的一轮。 */
 			function useTurnCost(config) {
 				const [turn, setTurn] = useState(null);
+				const [today, setToday] = useState(null);
 				const seen = useRef(0);
 				const primed = useRef(false);
 				useEffect(() => {
@@ -273,6 +278,7 @@
 							const response = await fetch(`${ASSET_BASE}/last-turn?ts=${Date.now()}`, { cache: "no-store" });
 							const body = response.ok ? await response.json() : null;
 							if (!alive || !body) return;
+							if (body.today) setToday(body.today);
 							const at = body.turn ? Number(body.turn.at) || 0 : 0;
 							if (!primed.current) {
 								// 第一次只记住基线（包括"还没有记录"=0），不把旧结果弹出来
@@ -294,7 +300,7 @@
 						window.clearInterval(timer);
 					};
 				}, [config.turnBubble]);
-				return turn;
+				return { turn, today };
 			}
 
 			// ---------------- 茶桌素材 ----------------
@@ -438,7 +444,7 @@
 			function FeeWidget() {
 				const config = useConfig();
 				const balance = useBalance(config);
-				const turn = useTurnCost(config);
+				const { turn, today } = useTurnCost(config);
 				const assets = useTableAssets();
 				// 谁坐桌上就切出哪几段；一个都不选时保留整张空桌
 				const visibleIds = Core.ROSTER.filter((member) => config.characters[member.id]).map((member) => member.id);
@@ -672,6 +678,13 @@
 							moneyParts[0] ? h("span", { className: "konfee-currency" }, moneyParts[0]) : null,
 							h("b", { className: `konfee-amount tone-${tone}` }, moneyParts[1]),
 						),
+						h("div", { className: "konfee-today" },
+							today && today.turns > 0
+								? `今天 ${Core.formatCost(today.amount)} · ${today.turns} 轮`
+								: "今天还没花钱",
+							today && today.tokens > 0 ? h("span", { className: "konfee-today-tokens" }, ` · ${formatTokens(today.tokens)} tokens`) : null,
+						),
+						h("div", { className: "konfee-schedule" }, `高峰 ${Core.PEAK_TEXT}`, h("span", { className: "konfee-schedule-note" }, "工作日；周末全天谷价")),
 						h("div", { className: "konfee-meter" },
 							h("div", { className: "konfee-track" },
 								h("i", {
