@@ -139,3 +139,20 @@ test("按座位切段：五人全坐还原整张桌子，抽掉一段后宽度�
 	assert.equal(all2.segments.length, 5, "null = 不做筛选，保留整张桌子");
 	assert.equal(all2.width, 288);
 });
+
+test("组合盒：把探出桌子两端的人物算进盒子，贴边不被裁", () => {
+	const all = Core.frameBounds(Core.layoutSegments(null));
+	assert.deepEqual([all.width, all.offset], [288, 0], "五个人全坐时盒子就是桌子");
+
+	const withoutMio = Core.layoutSegments(["ritsu", "yui", "tsumugi", "azusa"]);
+	assert.equal(withoutMio.width, 220);
+	const frame = Core.frameBounds(withoutMio);
+	assert.equal(withoutMio.segments[0].x, -4, "律的立绘探到桌子左边 4px");
+	assert.equal(frame.width, 224, "盒子把探出的 4px 算进来");
+	assert.equal(frame.offset, 4, "整组内容右移 4px");
+	assert.ok(withoutMio.segments.every((segment) => segment.x + frame.offset >= 0), "每个座位都在盒子内");
+
+	const middleGone = Core.frameBounds(Core.layoutSegments(["mio", "ritsu", "tsumugi", "azusa"]));
+	assert.equal(middleGone.width, 236, "抽掉中间的人时两头都在桌内，盒子就是桌子");
+	assert.equal(middleGone.offset, 0);
+});

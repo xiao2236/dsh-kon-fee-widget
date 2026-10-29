@@ -234,7 +234,7 @@
 			}
 
 			/** 桌面背景：desk00 是 4 帧横向动画，按座位段抽切后拼起来。 */
-			function TableBack({ image, layout }) {
+			function TableBack({ image, frame }) {
 				const ref = useRef(null);
 				useEffect(() => {
 					const canvas = ref.current;
@@ -244,14 +244,14 @@
 					let raf = 0;
 					let acc = 0;
 					let last = performance.now();
-					let frame = 0;
+					let tickFrame = 0;
 					const draw = () => {
-						context.clearRect(0, 0, layout.width, TABLE.height);
-						for (const segment of layout.segments) {
+						context.clearRect(0, 0, frame.width, TABLE.height);
+						for (const segment of frame.segments) {
 							context.drawImage(
 								image,
-								(frame % frames) * TABLE.width + segment.from, 0, segment.width, TABLE.height,
-								segment.from - segment.offset, 0, segment.width, TABLE.height,
+								(tickFrame % frames) * TABLE.width + segment.from, 0, segment.width, TABLE.height,
+								segment.from - segment.offset + frame.offset, 0, segment.width, TABLE.height,
 							);
 						}
 					};
@@ -261,7 +261,7 @@
 						const interval = 1000 / Math.max(1, TABLE.fps);
 						if (acc >= interval) {
 							acc %= interval;
-							frame += 1;
+							tickFrame += 1;
 							draw();
 						}
 						raf = requestAnimationFrame(tick);
@@ -269,27 +269,27 @@
 					draw();
 					raf = requestAnimationFrame(tick);
 					return () => cancelAnimationFrame(raf);
-				}, [image, layout]);
-				return h("canvas", { ref, width: layout.width, height: TABLE.height, className: "konfee-back", "aria-hidden": "true" });
+				}, [image, frame]);
+				return h("canvas", { ref, width: frame.width, height: TABLE.height, className: "konfee-back", "aria-hidden": "true" });
 			}
 
 			/** 前景：desk01 盖在人物前面，同样按座位段抽切。 */
-			function TableFront({ image, layout }) {
+			function TableFront({ image, frame }) {
 				const ref = useRef(null);
 				useEffect(() => {
 					const canvas = ref.current;
 					if (!canvas || !image) return;
 					const context = canvas.getContext("2d");
-					context.clearRect(0, 0, layout.width, TABLE.height);
-					for (const segment of layout.segments) {
+					context.clearRect(0, 0, frame.width, TABLE.height);
+					for (const segment of frame.segments) {
 						context.drawImage(
 							image,
 							segment.from, 0, segment.width, TABLE.height,
-							segment.from - segment.offset, 0, segment.width, TABLE.height,
+							segment.from - segment.offset + frame.offset, 0, segment.width, TABLE.height,
 						);
 					}
-				}, [image, layout]);
-				return h("canvas", { ref, width: layout.width, height: TABLE.height, className: "konfee-front", "aria-hidden": "true" });
+				}, [image, frame]);
+				return h("canvas", { ref, width: frame.width, height: TABLE.height, className: "konfee-front", "aria-hidden": "true" });
 			}
 
 			/** 座位立绘：中间三人循环播放坐姿动画，两侧静态。 */
@@ -340,8 +340,11 @@
 				const selected = TABLE.seats.filter((seat) => settings.characters[seat.id]).map((seat) => seat.id);
 				const seatIds = settings.showAll ? TABLE.seats.map((seat) => seat.id) : selected;
 				const layout = Core.layoutSegments(seatIds.length ? seatIds : null);
+				// 人物立绘比座位段宽，抽段后会探出桌子两端；盒子按「桌子 ∪ 人」算，
+				// 免得贴边时人被视口裁掉。
+				const frame = Core.frameBounds(layout);
 				const size = {
-					width: Math.round(layout.width * settings.scale),
+					width: Math.round(frame.width * settings.scale),
 					height: Math.round(TABLE.height * settings.scale),
 				};
 				const [pos, setPos] = useState(() => settings.pos || Core.defaultPosition(size, { width: window.innerWidth, height: window.innerHeight }));
@@ -374,7 +377,7 @@
 						const next = Core.snapToEdge(previous, size, { width: window.innerWidth, height: window.innerHeight }, { enabled: settings.snap, threshold: SNAP_DISTANCE });
 						return { x: next.x, y: next.y };
 					});
-				}, [layout.width, settings.scale]);
+				}, [frame.width, settings.scale]);
 
 				// 账本开着的时候每分钟刷新一次峰谷状态
 				useEffect(() => {
@@ -494,6 +497,7 @@
 						className: `konfee-table${pressing ? " is-press" : ""}${dragging ? " is-drag" : ""}`,
 						"data-konfee": "table",
 						"data-width": layout.width,
+					"data-box": frame.width,
 						"data-state": balance.ok ? (warn ? "warn" : "ok") : balance.configMissing ? "no-key" : "error",
 						"data-peak": peak.peak ? "peak" : "valley",
 						style: {
@@ -513,19 +517,19 @@
 						onKeyDown,
 					},
 						h("div", { className: "konfee-stage" },
-							assets ? h(TableBack, { image: assets.desk00, layout }) : null,
+							assets ? h(TableBack, { image: assets.desk00, frame }) : null,
 							...layout.segments.map((segment) => h("div", {
 								key: segment.id,
 								className: "konfee-seat",
 								"data-char": segment.id,
 								style: {
-									left: `${Math.round(segment.x * settings.scale)}px`,
+									left: `${Math.round((segment.x + frame.offset) * settings.scale)}px`,
 									top: `${Math.round(segment.y * settings.scale)}px`,
 									width: `${Math.round((TABLE.widths[segment.id] || TABLE.charWidth) * settings.scale)}px`,
 									height: `${Math.round(TABLE.charHeight * settings.scale)}px`,
 								},
 							}, assets ? h(SeatSprite, { id: segment.id, image: assets.seats[segment.id] }) : null)),
-							assets ? h(TableFront, { image: assets.desk01, layout }) : null,
+							assets ? h(TableFront, { image: assets.desk01, frame }) : null,
 						),
 					),
 					open ? h("div", {

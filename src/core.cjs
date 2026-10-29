@@ -182,6 +182,25 @@
 		};
 	}
 
+	/**
+	 * 组合盒：桌子段 + 人物立绘的并集。
+	 * 人物比座位段宽，抽段后会探出桌子两端；这里算出内容的最小/最大 x 与需要右移的 offset，
+	 * 让整个盒子贴边时不会被视口裁掉。
+	 */
+	function frameBounds(layout) {
+		const segments = layout && Array.isArray(layout.segments) ? layout.segments : [];
+		const tableWidth = Math.max(1, Number(layout && layout.width) || TABLE.width);
+		const left = Math.min(0, ...segments.map((segment) => segment.x));
+		const right = Math.max(tableWidth, ...segments.map((segment) => segment.x + (TABLE.widths[segment.id] || TABLE.charWidth)));
+		return {
+			width: Math.round(right - left),
+			offset: left === 0 ? 0 : Math.round(-left),
+			left,
+			right,
+			segments,
+		};
+	}
+
 	/** 拖拽松手后的吸附：四边 + 四角。 */
 	function snapToEdge(pos, size, viewport, options = {}) {
 		const threshold = Number.isFinite(Number(options.threshold)) ? Number(options.threshold) : 24;
@@ -284,6 +303,7 @@
 		PEAK_WINDOWS,
 		segmentBounds,
 		layoutSegments,
+		frameBounds,
 		clamp,
 		formatMoney,
 		parseBalance,
