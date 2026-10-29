@@ -73,20 +73,21 @@ test("配置文件：默认值带注释写盘、POST 修改、手改后能重新
 		const ctx = makeCtx({});
 		const first = await callRoute(ctx.handler, "/dsh-kon-fee-widget/config");
 		assert.equal(first.json.ok, true);
-		assert.equal(first.json.config.showCharacters, true);
+		assert.deepEqual(first.json.config.characters, { mio: true, ritsu: true, yui: true, tsumugi: true, azusa: true });
 		assert.equal(first.json.config.scale, 1);
 		assert.equal(first.json.path, file);
 
 		const written = await readFile(file, "utf8");
-		assert.ok(written.includes("// 桌子上的五个人是否显示"), "默认配置写盘时带中文注释");
-		assert.ok(written.includes('"showCharacters": true'));
+		assert.ok(written.includes("// 五个人谁坐上桌"), "默认配置写盘时带中文注释");
+		assert.ok(written.includes('"mio": true'));
 
-		const posted = await callPost(ctx.handler, "/dsh-kon-fee-widget/config", { showCharacters: false, scale: 1.45, warnBelow: 2 });
-		assert.equal(posted.json.config.showCharacters, false);
+		const posted = await callPost(ctx.handler, "/dsh-kon-fee-widget/config", { characters: { mio: false }, scale: 1.45, warnBelow: 2 });
+		assert.equal(posted.json.config.characters.mio, false);
+		assert.equal(posted.json.config.characters.ritsu, true, "没点名的角色保持显示");
 		assert.equal(posted.json.config.scale, 1.45);
 		assert.equal(posted.json.config.warnBelow, 2);
 		const afterPost = await readFile(file, "utf8");
-		assert.ok(afterPost.includes('"showCharacters": false'), "POST 后写回文件");
+		assert.ok(afterPost.includes('"mio": false'), "POST 后写回文件");
 
 		// 手改文件（带注释、只写一部分）→ 下次 GET 能读到
 		await writeFile(file, `{
@@ -96,14 +97,15 @@ test("配置文件：默认值带注释写盘、POST 修改、手改后能重新
 }
 `, "utf8");
 		const reread = await callRoute(ctx.handler, "/dsh-kon-fee-widget/config");
-		assert.equal(reread.json.config.showCharacters, false);
+		assert.equal(reread.json.config.characters.mio, false);
+		assert.equal(reread.json.config.characters.azusa, false);
 		assert.equal(reread.json.config.scale, 0.8);
 		assert.equal(reread.json.config.turnBubble, true, "没写的键回默认");
 
 		// 非法 JSON → 回默认并重写文件
 		await writeFile(file, "{ 不是 json", "utf8");
 		const broken = await callRoute(ctx.handler, "/dsh-kon-fee-widget/config");
-		assert.equal(broken.json.config.showCharacters, true);
+		assert.equal(broken.json.config.characters.mio, true);
 	} finally {
 		if (previous === undefined) delete process.env.KON_FEE_CONFIG;
 		else process.env.KON_FEE_CONFIG = previous;

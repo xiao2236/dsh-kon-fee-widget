@@ -20,10 +20,10 @@
 			const SNAP_DISTANCE = 24;
 			const PANEL_MS = 8000;
 
-			// ---------------- 配置（宿主下发；设置页只留「显示人物」） ----------------
+			// ---------------- 配置（宿主下发；设置页管「谁坐上桌」） ----------------
 			const DEFAULT_CONFIG = {
 				visible: true,
-				showCharacters: true,
+				characters: { mio: true, ritsu: true, yui: true, tsumugi: true, azusa: true },
 				scale: 1,
 				snap: true,
 				refreshSeconds: 60,
@@ -430,9 +430,10 @@
 				const balance = useBalance(config);
 				const turn = useTurnCost(config);
 				const assets = useTableAssets();
-				// 人物要么五个人全显示、要么全隐藏；桌子本身始终是完整的那张
-				const showSeats = config.showCharacters;
-				const layout = Core.layoutSegments(null);
+				// 谁坐桌上就切出哪几段；一个都不选时保留整张空桌
+				const visibleIds = Core.ROSTER.filter((member) => config.characters[member.id]).map((member) => member.id);
+				const layout = Core.layoutSegments(visibleIds.length ? visibleIds : null);
+				const showSeats = visibleIds.length > 0;
 				// 人物立绘比座位段宽，盒子按「桌子 ∪ 人」算，免得贴边时人被视口裁掉。
 				const frame = Core.frameBounds(layout);
 				const size = {
@@ -473,7 +474,7 @@
 						const next = Core.snapToEdge(previous, size, { width: window.innerWidth, height: window.innerHeight }, { enabled: config.snap, threshold: SNAP_DISTANCE });
 						return { x: next.x, y: next.y };
 					});
-				}, [frame.width, config.scale, config.showCharacters]);
+				}, [frame.width, config.scale, visibleIds.join(",")]);
 
 				// 账本开着的时候每分钟刷新一次峰谷状态
 				useEffect(() => {
@@ -699,26 +700,42 @@
 				const balance = useBalance(config);
 				const status = Core.statusInfo(balance);
 				const peak = Core.priceWindow();
+				const toggleCharacter = (id) => updateConfig({ characters: { ...config.characters, [id]: !config.characters[id] } });
+				const copyPath = () => {
+					try { navigator.clipboard.writeText(configPath || "~/.dsh/kon-fee-widget.json"); } catch { /* 剪贴板不可用就忽略 */ }
+				};
 				return h("div", { className: "konfee-set" },
 					styleElement(),
 					h("h2", null, "轻音部费罐"),
-					h("p", { className: "konfee-set-sub" }, "设置页只放一个开关；其余旋钮都在下面那个配置文件里（带注释，改完刷新页面生效）。"),
+					h("p", { className: "konfee-set-sub" }, "点一下茶桌弹账本；下面管谁坐上桌，其他旋钮都在配置文件里（带注释，改完刷新页面生效）。"),
 					h("section", { className: "konfee-set-card" },
 						h("div", { className: "konfee-set-row" },
 							h("div", { className: "konfee-set-name" },
-								h("b", null, "显示人物"),
-								h("small", null, "关掉后只留一张空桌子"),
+								h("b", null, "坐上桌的人"),
+								h("small", null, "勾掉谁，谁就连同自己那一段桌子一起收起"),
 							),
-							h(FeeSwitch, { checked: config.showCharacters, onChange: () => updateConfig({ showCharacters: !config.showCharacters }), label: "显示人物" }),
+							h("div", { className: "konfee-chars" },
+								...Core.ROSTER.map((member) => h("button", {
+									key: member.id,
+									type: "button",
+									className: `konfee-btn${config.characters[member.id] ? " is-on" : ""}`,
+									"aria-pressed": Boolean(config.characters[member.id]),
+									"aria-label": member.name,
+									onClick: () => toggleCharacter(member.id),
+								}, member.name)),
+							),
 						),
 					),
 					h("section", { className: "konfee-set-card" },
 						h("div", { className: "konfee-set-row" },
 							h("div", { className: "konfee-set-name" },
 								h("b", null, "配置文件"),
-								h("small", null, "大小、贴边、刷新间隔、低余额阈值、每轮气泡、账本停留时长都在这里"),
+								h("small", null, "大小、贴边、刷新间隔、低余额阈值、每轮气泡、账本停留时长；手改即可"),
 							),
-							h("code", { className: "konfee-path" }, configPath || "~/.dsh/kon-fee-widget.json"),
+							h("div", { style: { display: "flex", alignItems: "center", gap: "6px" } },
+								h("code", { className: "konfee-path" }, configPath || "~/.dsh/kon-fee-widget.json"),
+								h("button", { type: "button", className: "konfee-btn", onClick: copyPath }, "复制路径"),
+							),
 						),
 						h("div", { className: "konfee-set-row" },
 							h("div", { className: "konfee-set-name" },
