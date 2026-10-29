@@ -37,6 +37,7 @@
 				eggComboChance: 0.5,
 				lang: "zh",
 				voice: true,
+				bubbleAreaRatio: 1.3,
 			};
 			const POS_KEY = "dsh-kon-fee:pos";
 			const configListeners = new Set();
@@ -710,7 +711,11 @@
 				const panelStyle = config.bubbleStyle || "cassette";
 				const PANEL_SIZES = { cassette: { width: 260, height: 170 }, "cassette-full": { width: 300, height: 226 }, mascot: { width: 320, height: 240 }, plain: { width: 230, height: 150 } };
 				const panelSize = PANEL_SIZES[panelStyle] || PANEL_SIZES.cassette;
-				const PANEL_HALF = Math.round(panelSize.width / 2) + 8;
+				// 气泡面积 = 桌子+人物面积 × bubbleAreaRatio（默认 1.3）；人少时气泡跟着变小
+				const ratio = Math.max(0.5, Math.min(3, Number(config.bubbleAreaRatio) || 1.3));
+				const widgetArea = frame.width * TABLE.height;
+				const bubbleScale = Core.clamp(Math.sqrt((widgetArea * ratio) / (panelSize.width * panelSize.height)), 0.7, 1.6);
+				const PANEL_HALF = Math.round((panelSize.width * bubbleScale) / 2) + 8;
 				const panelLeft = Core.clamp(
 					pos.x + size.width / 2,
 					8 + PANEL_HALF,
@@ -718,7 +723,7 @@
 				);
 				const panelBelow = pos.y < panelSize.height + 24;
 				// 气泡跟着桌子一起缩放：以贴边的那条边为原点，缩放后仍贴着桌子
-				const bubbleTransform = (below) => `translate(-50%, ${below ? "0" : "-100%"}) scale(${scaleDraft})`;
+				const bubbleTransform = (below) => `translate(-50%, ${below ? "0" : "-100%"}) scale(${scaleDraft * bubbleScale})`;
 				const bubbleOrigin = (below) => (below ? "50% 0" : "50% 100%");
 				const menuBelow = pos.y < 200;
 
