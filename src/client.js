@@ -119,6 +119,17 @@
 .konfee-front{z-index:3}
 .konfee-seat{position:absolute;z-index:1;pointer-events:none}
 .konfee-seat canvas{width:100%;height:100%;image-rendering:pixelated;display:block}
+.konfee-gear{position:absolute;right:2px;top:2px;z-index:8;width:22px;height:22px;padding:0;border:1px solid rgba(163,131,94,.4);border-radius:50%;background:rgba(255,253,246,.88);box-shadow:0 2px 6px rgba(60,45,30,.18);color:#8a6a4a;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.7;transition:opacity .15s,transform .2s}
+.konfee-gear:hover{opacity:1;transform:rotate(35deg)}
+.konfee-menu{position:absolute;right:0;bottom:calc(100% + 6px);z-index:9;width:196px;padding:10px 12px;border-radius:12px;background:rgba(255,253,246,.98);border:1px solid rgba(163,131,94,.35);box-shadow:0 14px 30px rgba(60,45,30,.24);font-size:12px;color:#4a3d33}
+.konfee-menu.is-below{top:calc(100% + 6px);bottom:auto}
+.konfee-menu-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.konfee-menu-row:last-child{margin-bottom:0}
+.konfee-menu-row input[type=range]{flex:1;min-width:0;accent-color:#8a6aa8}
+.konfee-menu-label{color:#a4886b;flex:none}
+.konfee-menu-value{width:38px;text-align:right;flex:none;font-variant-numeric:tabular-nums;color:#8a6a4a}
+.konfee-menu-btn{width:100%;border:1px solid rgba(127,127,127,.3);background:transparent;border-radius:8px;padding:5px 8px;font:inherit;font-size:12px;cursor:pointer;color:inherit}
+.konfee-menu-btn:hover{background:rgba(127,127,127,.08)}
 .konfee-panel{position:fixed;transform:translate(-50%,-100%);width:238px;box-sizing:border-box;padding:11px 14px 10px;border-radius:16px;background:linear-gradient(180deg,#fffdf8 0%,#fdf6e9 100%);color:#4a3d33;border:1px solid rgba(163,131,94,.34);box-shadow:0 16px 36px rgba(76,52,28,.24),0 2px 7px rgba(76,52,28,.12),inset 0 1px 0 rgba(255,255,255,.9);pointer-events:none;z-index:2147481910;animation:konfee-pop .2s cubic-bezier(.2,1.5,.45,1)}
 .konfee-panel.is-below{transform:translate(-50%,0)}
 .konfee-panel:after{content:"";position:absolute;left:50%;top:100%;width:9px;height:9px;margin-left:-5px;margin-top:-5px;background:#fdf6e9;border-right:1px solid rgba(163,131,94,.34);border-bottom:1px solid rgba(163,131,94,.34);transform:rotate(45deg)}
@@ -447,9 +458,10 @@
 				const showSeats = visibleIds.length > 0;
 				// 人物立绘比座位段宽，盒子按「桌子 ∪ 人」算，免得贴边时人被视口裁掉。
 				const frame = Core.frameBounds(layout);
+				const [scaleDraft, setScaleDraft] = useState(config.scale);
 				const size = {
-					width: Math.round(frame.width * config.scale),
-					height: Math.round(TABLE.height * config.scale),
+					width: Math.round(frame.width * scaleDraft),
+					height: Math.round(TABLE.height * scaleDraft),
 				};
 				const [pos, setPos] = useState(() => readPos() || Core.defaultPosition(size, { width: window.innerWidth, height: window.innerHeight }));
 				const [pressing, setPressing] = useState(false);
@@ -457,8 +469,38 @@
 				const [open, setOpen] = useState(false);
 				const [now, setNow] = useState(() => Date.now());
 				const [spend, setSpend] = useState(null);
+				const [menuOpen, setMenuOpen] = useState(false);
 				const dragRef = useRef(null);
 				const panelTimer = useRef(0);
+				const scaleTimer = useRef(0);
+				const menuRef = useRef(null);
+
+				// 外部改了 scale（比如设置页/配置文件）时同步滑杆
+				useEffect(() => { setScaleDraft(config.scale); }, [config.scale]);
+
+				// 齿轮菜单开着时，点别处关掉
+				useEffect(() => {
+					if (!menuOpen) return undefined;
+					const onDown = (event) => {
+						if (menuRef.current && !menuRef.current.contains(event.target)) setMenuOpen(false);
+					};
+					document.addEventListener("pointerdown", onDown, true);
+					return () => document.removeEventListener("pointerdown", onDown, true);
+				}, [menuOpen]);
+
+				const changeScale = (value) => {
+					const next = Math.max(Core.SCALE_MIN, Math.min(Core.SCALE_MAX, Math.round(value * 100) / 100));
+					setScaleDraft(next);
+					window.clearTimeout(scaleTimer.current);
+					scaleTimer.current = window.setTimeout(() => updateConfig({ scale: next }), 350);
+				};
+
+				const goBottomRight = () => {
+					const next = { x: Math.max(0, window.innerWidth - size.width), y: Math.max(0, window.innerHeight - size.height) };
+					setPos(next);
+					writePos(next);
+					setMenuOpen(false);
+				};
 
 				// 新一轮结算 → 弹一条小气泡
 				useEffect(() => {
@@ -600,6 +642,7 @@
 					Math.max(8 + PANEL_HALF, window.innerWidth - 8 - PANEL_HALF),
 				);
 				const panelBelow = pos.y < 150;
+				const menuBelow = pos.y < 200;
 
 				return h("div", { className: "konfee-root" },
 					styleElement(),
@@ -633,14 +676,48 @@
 								className: "konfee-seat",
 								"data-char": segment.id,
 								style: {
-									left: `${Math.round((segment.x + frame.offset) * config.scale)}px`,
-									top: `${Math.round(segment.y * config.scale)}px`,
-									width: `${Math.round((TABLE.widths[segment.id] || TABLE.charWidth) * config.scale)}px`,
-									height: `${Math.round(TABLE.charHeight * config.scale)}px`,
+									left: `${Math.round((segment.x + frame.offset) * scaleDraft)}px`,
+									top: `${Math.round(segment.y * scaleDraft)}px`,
+									width: `${Math.round((TABLE.widths[segment.id] || TABLE.charWidth) * scaleDraft)}px`,
+									height: `${Math.round(TABLE.charHeight * scaleDraft)}px`,
 								},
 							}, assets ? h(SeatSprite, { id: segment.id, image: assets.seats[segment.id] }) : null)) : null,
 							assets ? h(TableFront, { image: assets.desk01, frame }) : null,
 						),
+						h("button", {
+							type: "button",
+							className: "konfee-gear",
+							"aria-label": "设置",
+							title: "设置",
+							"data-konfee": "gear",
+							onPointerDown: (event) => event.stopPropagation(),
+							onPointerUp: (event) => event.stopPropagation(),
+							onClick: (event) => { event.stopPropagation(); setMenuOpen((value) => !value); },
+						}, "⚙"),
+						menuOpen ? h("div", {
+							className: `konfee-menu${menuBelow ? " is-below" : ""}`,
+							ref: menuRef,
+							"data-konfee": "menu",
+							onPointerDown: (event) => event.stopPropagation(),
+							onPointerUp: (event) => event.stopPropagation(),
+						},
+							h("div", { className: "konfee-menu-row" },
+								h("span", { className: "konfee-menu-label" }, "大小"),
+								h("input", {
+									type: "range",
+									min: Core.SCALE_MIN,
+									max: Core.SCALE_MAX,
+									step: 0.05,
+									value: scaleDraft,
+									"aria-label": "大小",
+									onChange: (event) => changeScale(Number(event.target.value)),
+								}),
+								h("span", { className: "konfee-menu-value" }, `${scaleDraft.toFixed(2)}×`),
+							),
+							h("div", { className: "konfee-menu-row" },
+								h("button", { type: "button", className: "konfee-menu-btn", onClick: goBottomRight }, "回到右下角"),
+							),
+						) : null,
 					),
 					spend && !open ? h("div", {
 						className: `konfee-spend${panelBelow ? " is-below" : ""}`,
