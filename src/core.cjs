@@ -1,8 +1,8 @@
 /**
  * dsh-kon-fee-widget — 纯逻辑核心。
  *
- * 和 dsh-k-on-pet 一样：这个文件不依赖 DOM / React / localStorage，
- * 既会被 scripts/build-client.mjs 内联进 lib/client.js，也能被 Node 测试直接 require。
+ * 不依赖 DOM / React / localStorage：会被 build-client 内联进 lib/client.js，
+ * 也能被 Node 测试直接 require。
  */
 (function (root, factory) {
 	const api = factory();
@@ -14,8 +14,43 @@
 	const STORE_KEY = "dsh-kon-fee:v1";
 	const REFRESH_OPTIONS = [30, 60, 120];
 	const WARN_DEFAULT = 5;
-	const SCALE_MIN = 0.8;
+	const SCALE_MIN = 0.5;
 	const SCALE_MAX = 1.6;
+
+	// 原版茶桌场景：288×160，五个座位坐标来自 MascotTable_d/main.sd 的对象表。
+	const TABLE = {
+		width: 288,
+		height: 160,
+		charWidth: 64,
+		charHeight: 128,
+		charTop: 16,
+		widths: { yui: 64, mio: 64, ritsu: 80, tsumugi: 64, azusa: 64 },
+		frames: 4,
+		fps: 4,
+		seats: [
+			{ id: "mio", x: 0 },
+			{ id: "ritsu", x: 64 },
+			{ id: "yui", x: 112 },
+			{ id: "tsumugi", x: 176 },
+			{ id: "azusa", x: 224 },
+		],
+	};
+
+	// 坐姿动画：中间三人的帧表是 4 列 × 2 行，两侧两人用静态图。
+	const ANIM = {
+		yui: [0, 4, 5, 6, 7],
+		ritsu: [0, 4, 5],
+		tsumugi: [0, 4, 5, 6, 7],
+	};
+	const FRAME = { columns: 4, rows: 2, height: 128 };
+
+	const ROSTER = [
+		{ id: "mio", name: "秋山澪" },
+		{ id: "ritsu", name: "田井中律" },
+		{ id: "yui", name: "平泽唯" },
+		{ id: "tsumugi", name: "琴吹䌷" },
+		{ id: "azusa", name: "中野梓" },
+	];
 
 	const DEFAULT_SETTINGS = {
 		visible: true,
@@ -23,6 +58,8 @@
 		snap: true,
 		refreshSeconds: 60,
 		warnBelow: WARN_DEFAULT,
+		showAll: true,
+		characters: { mio: true, ritsu: true, yui: true, tsumugi: true, azusa: true },
 		pos: null,
 		edge: null,
 	};
@@ -45,7 +82,12 @@
 		loading: ["翻账本中…", "让我想想今天花了多少…"],
 	};
 
+	// DeepSeek 计价窗口（北京时间，工作日）：9:00–12:00、14:00–18:00 为高峰。
+	const PEAK_WINDOWS = [[9 * 60, 12 * 60], [14 * 60, 18 * 60]];
+
 	const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+	const pad2 = (value) => String(value).padStart(2, "0");
+	const clock = (minutes) => `${pad2(Math.floor(minutes / 60))}:${pad2(minutes % 60)}`;
 
 	/** 金额显示：CNY 用 ¥，其它币种写后缀。 */
 	function formatMoney(amount, currency = "") {
@@ -66,7 +108,36 @@
 		return { ok: true, amount, currency: typeof info.currency === "string" ? info.currency : "" };
 	}
 
-	/** 拖拽松手后的吸附：四边 + 四角，贴左时整体镜像。 */
+	/**
+	 * 现在是不是高峰计价（北京时间）。
+	 * 工作日 9:00–12:00、14:00–18:00 为高峰；其余时间为谷时；周末全天谷价。
+	 */
+	function priceWindow(date = new Date()) {
+		const stamp = date instanceof Date ? date : new Date(date);
+		if (Number.isNaN(stamp.getTime())) {
+			return { peak: false, weekend: false, minutes: 0, label: "谷时", detail: "现在计价更低", window: "" };
+		}
+		// 用 UTC 位移换算北京时间，不依赖运行环境的时区设置
+		const shifted = new Date(stamp.getTime() + 8 * 3600 * 1000);
+		const day = shifted.getUTCDay(); // 0 = 周日
+		const minutes = shifted.getUTCHours() * 60 + shifted.getUTCMinutes();
+		const weekend = day === 0 || day === 6;
+		const window = PEAK_WINDOWS.find(([start, end]) => minutes >= start && minutes < end) || null;
+		const peak = !weekend && Boolean(window);
+		const detail = peak
+			? `${clock(window[0])}–${clock(window[1])}`
+			: weekend ? "周末全天谷价" : "现在计价更低";
+		return {
+			peak,
+			weekend,
+			minutes,
+			label: peak ? "高峰" : "谷时",
+			detail,
+			window: window ? `${clock(window[0])}–${clock(window[1])}` : "",
+		};
+	}
+
+	/** 拖拽松手后的吸附：四边 + 四角。 */
 	function snapToEdge(pos, size, viewport, options = {}) {
 		const threshold = Number.isFinite(Number(options.threshold)) ? Number(options.threshold) : 24;
 		const enabled = options.enabled !== false;
@@ -88,24 +159,14 @@
 			if (y <= threshold) y = 0;
 			else if (y >= vh - height - threshold) y = vh - height;
 		}
-		return {
-			x: Math.round(x),
-			y: Math.round(y),
-			edge: edge || null,
-			mirrored: edge === "left",
-		};
+		return { x: Math.round(x), y: Math.round(y), edge: edge || null };
 	}
 
 	/** 默认位置：左下角贴边（避开桌宠习惯待的右下角）。 */
 	function defaultPosition(size, viewport) {
 		const vh = Math.max(1, Number(viewport && viewport.height) || 1);
 		const height = Math.max(1, Number(size && size.height) || 1);
-		return {
-			x: 0,
-			y: Math.max(0, vh - height),
-			edge: "left",
-			mirrored: true,
-		};
+		return { x: 0, y: Math.max(0, vh - height) };
 	}
 
 	/** 数字滚动：easeOutCubic 插值。 */
@@ -134,9 +195,7 @@
 		const stamp = Number(next.updatedAt) || 0;
 		if (!stamp) return { text: "等待刷新", tone: "muted" };
 		const date = new Date(stamp);
-		const hh = String(date.getHours()).padStart(2, "0");
-		const mm = String(date.getMinutes()).padStart(2, "0");
-		return { text: `更新于 ${hh}:${mm}`, tone: "ok" };
+		return { text: `更新于 ${pad2(date.getHours())}:${pad2(date.getMinutes())}`, tone: "ok" };
 	}
 
 	/** 设置清洗：只认已知字段，坏值一律回默认。 */
@@ -149,12 +208,17 @@
 			? { x: Math.round(Number(source.pos.x)), y: Math.round(Number(source.pos.y)) }
 			: null;
 		const edge = source.edge === "left" || source.edge === "right" ? source.edge : null;
+		const rawCharacters = source.characters && typeof source.characters === "object" && !Array.isArray(source.characters) ? source.characters : {};
+		const characters = {};
+		for (const member of ROSTER) characters[member.id] = rawCharacters[member.id] !== false;
 		return {
 			visible: source.visible !== false,
 			scale: Number.isFinite(scale) ? clamp(Math.round(scale * 100) / 100, SCALE_MIN, SCALE_MAX) : DEFAULT_SETTINGS.scale,
 			snap: source.snap !== false,
 			refreshSeconds: REFRESH_OPTIONS.includes(refresh) ? refresh : DEFAULT_SETTINGS.refreshSeconds,
 			warnBelow: Number.isFinite(warn) ? clamp(Math.round(warn * 100) / 100, 0, 10000) : DEFAULT_SETTINGS.warnBelow,
+			showAll: source.showAll !== false,
+			characters,
 			pos,
 			edge,
 		};
@@ -167,10 +231,16 @@
 		SCALE_MIN,
 		SCALE_MAX,
 		DEFAULT_SETTINGS,
+		TABLE,
+		ANIM,
+		FRAME,
+		ROSTER,
 		LINES,
+		PEAK_WINDOWS,
 		clamp,
 		formatMoney,
 		parseBalance,
+		priceWindow,
 		snapToEdge,
 		defaultPosition,
 		rollAmount,

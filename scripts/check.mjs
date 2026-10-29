@@ -4,9 +4,13 @@
  * 运行：node scripts/check.mjs
  */
 import { readFile, stat } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderClient } from "./build-client.mjs";
+
+const require = createRequire(import.meta.url);
+const Core = require("../src/core.cjs");
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const problems = [];
@@ -46,14 +50,17 @@ for (const rel of [
 	"src/client.js",
 	"lib/index.js",
 	"lib/client.js",
-	"assets/characters/mio/sheet.png",
-	"assets/characters/mio/meta.json",
+	"assets/table/characters.json",
+	"assets/table/desk00.png",
+	"assets/table/desk01.png",
+	...Core.TABLE.seats.map((seat) => (Core.ANIM[seat.id] ? `assets/table/${seat.id}-frames.png` : `assets/table/${seat.id}.png`)),
 	"cordis.patch.yml",
 	"README.md",
 	"LICENSE",
 	"NOTICE",
 	"THIRD_PARTY_NOTICES.md",
 	"test/core.test.mjs",
+	"test/host.test.mjs",
 ]) {
 	await mustExist(rel);
 }
@@ -65,18 +72,23 @@ if (!hostPrefix || !clientBase || hostPrefix !== clientBase) {
 }
 
 try {
-	const meta = JSON.parse(await readFile(join(root, "assets/characters/mio/meta.json"), "utf8"));
-	const { columns, rows, cell } = meta.sheet;
-	if (cell !== 96) problems.push("mio: cell 应为 96");
-	if (!Number.isInteger(columns) || !Number.isInteger(rows)) problems.push("mio: sheet 行列数异常");
-	if (!Array.isArray(meta.cells) || meta.cells.length !== columns * rows) problems.push("mio: cells 数量与行列数不符");
-	if (!meta.actions || meta.actions.idle === undefined) problems.push("mio: meta.actions 缺少 idle");
-	for (const key of ["idle", "walkLeft", "walkRight", "click", "dance", "sleep", "held"]) {
-		if (meta.actions?.[key] === undefined) problems.push(`mio: actions 缺少 ${key}`);
+	const layout = JSON.parse(await readFile(join(root, "assets/table/characters.json"), "utf8"));
+	const anims = Object.keys(layout.animations || {});
+	const known = new Set(Core.TABLE.seats.map((seat) => seat.id));
+	for (const id of anims) {
+		if (!known.has(id)) problems.push(`characters.json 的动画 ${id} 不在茶桌座位里`);
+		if (!Core.ANIM[id]) problems.push(`characters.json 有 ${id} 的动画，但 core.ANIM 没同步`);
 	}
-	notes.push(`mio: ${meta.name} ${columns}×${rows} · 待机 row${meta.actions.idle}`);
+	for (const id of Object.keys(Core.ANIM)) {
+		if (!anims.includes(id)) problems.push(`core.ANIM 有 ${id}，但 characters.json 没声明`);
+	}
+	for (const [id, width] of Object.entries(layout.frame?.widths || {})) {
+		if ((Core.TABLE.widths[id] || Core.TABLE.charWidth) !== width) problems.push(`characters.json 里 ${id} 的帧宽 ${width} 与 core.TABLE 不一致`);
+	}
+	if (layout.frame?.height !== Core.TABLE.charHeight) problems.push("characters.json 帧高与 core.TABLE.charHeight 不一致");
+	notes.push(`茶桌 ${Core.TABLE.width}×${Core.TABLE.height}，${Core.TABLE.seats.length} 个座位，动画 ${anims.join("/")}`);
 } catch (error) {
-	problems.push(`mio: meta.json 读取失败：${error.message}`);
+	problems.push(`characters.json 读取失败：${error.message}`);
 }
 
 if (problems.length) {

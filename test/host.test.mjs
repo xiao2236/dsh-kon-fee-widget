@@ -126,7 +126,7 @@ test("静态素材路由仍然可用，非本插件前缀返回 404", async () =
 		return res;
 	};
 	const res = makeRes();
-	await ctx.handler({ method: "GET", url: "/dsh-kon-fee-widget/characters/mio/meta.json" }, res);
+	await ctx.handler({ method: "GET", url: "/dsh-kon-fee-widget/table/characters.json" }, res);
 	await new Promise((done) => setTimeout(done, 200));
 	assert.equal(res.status, 200);
 	const missing = makeRes();
