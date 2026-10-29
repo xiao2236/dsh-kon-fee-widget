@@ -75,6 +75,37 @@ test("峰谷：工作日两个高峰窗口、午休与晚间谷时、周末全�
 	assert.equal(morningStart.peak, true, "9:00 整算高峰");
 });
 
+test("峰谷倒计时：距下一次切换的时刻与进度", () => {
+	// 周四 10:00 → 距 12:00 进谷还有 2 小时，进度 (10-9)/(12-9) = 1/3
+	const ten = Core.priceWindow(new Date(Date.UTC(2026, 9, 29, 2, 0)));
+	assert.equal(ten.nextPeak, false, "下一个切换是进谷时");
+	assert.equal(ten.remainMs, 2 * 3600 * 1000);
+	assert.ok(Math.abs(ten.progress - 1 / 3) < 1e-6);
+	assert.equal(ten.nextText, "距进入谷时 2 小时");
+
+	// 周四 12:30 → 距 14:00 进高峰还有 1.5 小时
+	const noon = Core.priceWindow(new Date(Date.UTC(2026, 9, 29, 4, 30)));
+	assert.equal(noon.nextPeak, true);
+	assert.equal(noon.remainMs, 90 * 60 * 1000);
+	assert.equal(noon.nextText, "距进入高峰 1 小时 30 分");
+
+	// 周四 18:30 → 下一次是周五 09:00
+	const evening = Core.priceWindow(new Date(Date.UTC(2026, 9, 29, 10, 30)));
+	assert.equal(evening.nextPeak, true);
+	assert.equal(evening.remainMs, (14 * 60 + 30) * 60 * 1000);
+
+	// 周六 10:00 → 下一次是周一 09:00（周末全天谷价）
+	const saturday = Core.priceWindow(new Date(Date.UTC(2026, 9, 31, 2, 0)));
+	assert.equal(saturday.nextPeak, true);
+	assert.equal(saturday.remainMs, 47 * 3600 * 1000);
+
+	// 倒计时文案
+	assert.equal(Core.formatCountdown(30 * 1000), "不到 1 分钟");
+	assert.equal(Core.formatCountdown(42 * 60 * 1000), "42 分钟");
+	assert.equal(Core.formatCountdown((2 * 60 + 5) * 60 * 1000), "2 小时 5 分");
+	assert.equal(Core.formatCountdown(3 * 3600 * 1000), "3 小时");
+});
+
 test("吸附：靠近边缘才吸，越界夹回", () => {
 	const viewport = { width: 1000, height: 700 };
 	const size = { width: 288, height: 160 };

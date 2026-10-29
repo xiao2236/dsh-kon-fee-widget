@@ -18,7 +18,7 @@
 			const ASSET_REV = "__FEE_ASSET_REV__";
 			const TABLE = Core.TABLE;
 			const SNAP_DISTANCE = 24;
-			const PANEL_MS = 6000;
+			const PANEL_MS = 8000;
 
 			// ---------------- 设置存储 ----------------
 			const listeners = new Set();
@@ -85,23 +85,32 @@
 .konfee-front{z-index:3}
 .konfee-seat{position:absolute;z-index:1;pointer-events:none}
 .konfee-seat canvas{width:100%;height:100%;image-rendering:pixelated;display:block}
-.konfee-panel{position:fixed;transform:translate(-50%,-100%);min-width:190px;max-width:250px;padding:10px 13px;border-radius:14px;background:rgba(255,255,255,.97);color:#3a3340;border:1px solid rgba(70,55,80,.12);box-shadow:0 12px 30px rgba(40,30,55,.22);pointer-events:none;z-index:2147481910;animation:konfee-pop .18s cubic-bezier(.2,1.4,.4,1)}
+.konfee-panel{position:fixed;transform:translate(-50%,-100%);width:238px;box-sizing:border-box;padding:11px 14px 10px;border-radius:16px;background:linear-gradient(180deg,#fffdf8 0%,#fdf6e9 100%);color:#4a3d33;border:1px solid rgba(163,131,94,.34);box-shadow:0 16px 36px rgba(76,52,28,.24),0 2px 7px rgba(76,52,28,.12),inset 0 1px 0 rgba(255,255,255,.9);pointer-events:none;z-index:2147481910;animation:konfee-pop .2s cubic-bezier(.2,1.5,.45,1)}
 .konfee-panel.is-below{transform:translate(-50%,0)}
-.konfee-panel:after{content:"";position:absolute;left:50%;top:100%;width:10px;height:10px;margin-left:-6px;margin-top:-5px;background:inherit;border-right:1px solid rgba(70,55,80,.12);border-bottom:1px solid rgba(70,55,80,.12);transform:rotate(45deg)}
-.konfee-panel.is-below:after{top:-6px;margin-top:0;transform:rotate(-135deg)}
-@keyframes konfee-pop{from{opacity:0;transform:translate(-50%,-100%) scale(.96)}to{opacity:1;transform:translate(-50%,-100%) scale(1)}}
-.konfee-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
-.konfee-label{font-size:10px;letter-spacing:.14em;color:#9a91a2}
-.konfee-amount{font-size:22px;font-weight:650;line-height:1.2;font-variant-numeric:tabular-nums}
-.konfee-amount.tone-warn{color:#c25b4e}
-.konfee-amount.tone-error{color:#a08b8b;font-size:15px}
-.konfee-meta{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11px;color:#7c7385}
-.konfee-tag{flex:none;font-size:10px;padding:1px 6px;border-radius:999px;border:1px solid transparent}
-.konfee-tag.is-peak{color:#b3503f;background:rgba(214,88,88,.12);border-color:rgba(214,88,88,.3)}
-.konfee-tag.is-valley{color:#4d7a5c;background:rgba(95,138,106,.14);border-color:rgba(95,138,106,.32)}
-.konfee-line{margin-top:6px;font-size:11px;line-height:1.5;color:#8c8395}
-.konfee-status{font-size:10px;color:#9a91a2;margin-top:4px}
-.konfee-status.tone-error{color:#c25b4e}
+.konfee-panel:after{content:"";position:absolute;left:50%;top:100%;width:9px;height:9px;margin-left:-5px;margin-top:-5px;background:#fdf6e9;border-right:1px solid rgba(163,131,94,.34);border-bottom:1px solid rgba(163,131,94,.34);transform:rotate(45deg)}
+.konfee-panel.is-below:after{top:-5px;margin-top:0;transform:rotate(-135deg)}
+@keyframes konfee-pop{from{opacity:0;transform:translate(-50%,-100%) translateY(5px) scale(.96)}to{opacity:1;transform:translate(-50%,-100%) translateY(0) scale(1)}}
+.konfee-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.konfee-title{font-size:10px;letter-spacing:.16em;color:#ab8a68;font-weight:600;white-space:nowrap}
+.konfee-amount-row{display:flex;align-items:baseline;gap:3px;margin:5px 0 8px}
+.konfee-currency{font-size:13px;color:#8d7256;font-weight:600;transform:translateY(-1px)}
+.konfee-amount{font-size:27px;line-height:1;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.konfee-amount.tone-warn{color:#c4563f}
+.konfee-amount.tone-error{color:#a0836a;font-size:15px;font-weight:600;transform:translateY(-2px)}
+.konfee-meter{margin:0}
+.konfee-track{height:5px;border-radius:999px;background:rgba(166,133,96,.18);overflow:hidden}
+.konfee-track i{display:block;height:100%;border-radius:999px;transition:width .6s ease}
+.konfee-track i.is-peak{background:linear-gradient(90deg,#eaa78f,#d0604a)}
+.konfee-track i.is-valley{background:linear-gradient(90deg,#a9cfae,#5f9a6d)}
+.konfee-meter-text{display:flex;justify-content:space-between;gap:8px;margin-top:5px;font-size:10.5px;color:#9b7f61;font-variant-numeric:tabular-nums}
+.konfee-divider{height:1px;margin:9px 0 8px;background:repeating-linear-gradient(90deg,rgba(163,131,94,.35) 0 4px,transparent 4px 8px)}
+.konfee-tag{flex:none;font-size:10px;padding:1.5px 7px;border-radius:999px;border:1px solid transparent;font-weight:600;letter-spacing:.03em}
+.konfee-tag.is-peak{color:#b3503f;background:rgba(214,88,88,.13);border-color:rgba(214,88,88,.34)}
+.konfee-tag.is-valley{color:#4d7a5c;background:rgba(95,138,106,.15);border-color:rgba(95,138,106,.34)}
+.konfee-line{font-size:11px;line-height:1.55;color:#7c6752}
+.konfee-foot{display:flex;justify-content:space-between;gap:8px;margin-top:7px;font-size:9.5px;color:#a4886b}
+.konfee-status{font-size:9.5px;color:#a4886b}
+.konfee-status.tone-error{color:#c4563f}
 .konfee-set{padding:2px 0 26px;font-size:13px;line-height:1.6;color:inherit}
 .konfee-set h2{font-size:18px;font-weight:650;margin:0 0 4px}
 .konfee-set-sub{font-size:12px;opacity:.6;margin:0 0 16px}
@@ -382,7 +391,7 @@
 				// 账本开着的时候每分钟刷新一次峰谷状态
 				useEffect(() => {
 					if (!open) return undefined;
-					const timer = window.setInterval(() => setNow(Date.now()), 60 * 1000);
+					const timer = window.setInterval(() => setNow(Date.now()), 1000);
 					return () => window.clearInterval(timer);
 				}, [open]);
 
@@ -409,6 +418,9 @@
 				const amountText = balance.ok || balance.stale
 					? Core.formatMoney(balance.amount, balance.currency)
 					: balance.configMissing ? "未配置" : balance.error ? "读取失败" : "…";
+				// 把「¥」和数字拆开，金额排版更干净
+				const moneyMatch = amountText.match(/^([^\d]*)([\d.,]+.*)$/);
+				const moneyParts = moneyMatch ? [moneyMatch[1], moneyMatch[2]] : ["", amountText];
 				const line = balance.configMissing || (!balance.ok && !balance.stale)
 					? Core.pickLine("error")
 					: Core.pickLine("ok", balance.amount, balance.currency, settings.warnBelow);
@@ -540,16 +552,32 @@
 							top: `${Math.round(panelBelow ? pos.y + size.height + 12 : pos.y - 10)}px`,
 						},
 					},
-						h("div", { className: "konfee-row" },
-							h("span", { className: "konfee-label" }, "部费"),
-							h("b", { className: `konfee-amount tone-${tone}` }, amountText),
-						),
-						h("div", { className: "konfee-meta" },
+						h("div", { className: "konfee-head" },
+							h("span", { className: "konfee-title" }, "轻音部 · 部费账本"),
 							h("span", { className: `konfee-tag ${peak.peak ? "is-peak" : "is-valley"}` }, peak.peak ? "高峰" : "谷时"),
-							h("span", null, peak.peak ? `${peak.detail} 计价较高` : peak.detail),
 						),
+						h("div", { className: "konfee-amount-row" },
+							moneyParts[0] ? h("span", { className: "konfee-currency" }, moneyParts[0]) : null,
+							h("b", { className: `konfee-amount tone-${tone}` }, moneyParts[1]),
+						),
+						h("div", { className: "konfee-meter" },
+							h("div", { className: "konfee-track" },
+								h("i", {
+									className: peak.peak ? "is-peak" : "is-valley",
+									style: { width: `${Math.round(peak.progress * 100)}%` },
+								}),
+							),
+							h("div", { className: "konfee-meter-text" },
+								h("span", null, peak.nextText || "计价时段"),
+								h("span", null, peak.peak ? `高峰 ${peak.detail}` : peak.weekend ? "周末谷价" : "谷时"),
+							),
+						),
+						h("div", { className: "konfee-divider" }),
 						h("div", { className: "konfee-line" }, line),
-						h("div", { className: `konfee-status tone-${status.tone}` }, status.text),
+						h("div", { className: "konfee-foot" },
+							h("span", { className: `konfee-status tone-${status.tone}` }, status.text),
+							h("span", null, balance.ok || balance.stale ? "DeepSeek 余额" : balance.configMissing ? "未配置 key" : "离线"),
+						),
 					) : null,
 				);
 			}
@@ -674,7 +702,7 @@
 						h("div", { className: "konfee-set-row" },
 							h("div", { className: "konfee-set-name" },
 								h("b", null, "计价时段"),
-								h("small", null, `现在是${peak.label}${peak.peak ? `（${peak.detail}）` : `：${peak.detail}`}`),
+								h("small", null, `现在是${peak.label}${peak.peak ? `（${peak.detail}）` : `：${peak.detail}`}${peak.nextText ? `，${peak.nextText}` : ""}`),
 							),
 							h("div", { style: { display: "flex", gap: "6px" } },
 								h("button", { type: "button", className: "konfee-btn", onClick: () => balance.refresh() }, "立即刷新"),

@@ -133,6 +133,94 @@
 	const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 	const pad2 = (value) => String(value).padStart(2, "0");
 	const clock = (minutes) => `${pad2(Math.floor(minutes / 60))}:${pad2(minutes % 60)}`;
+	const MINUTE = 60 * 1000;
+	const DAY = 24 * 60 * MINUTE;
+	const BEIJING_OFFSET = 8 * 3600 * 1000;
+
+	/** 北京时间当天的 0 点（用 UTC 位移算，不依赖运行环境时区）。 */
+	const beijingDayStart = (ms) => Math.floor((ms + BEIJING_OFFSET) / DAY) * DAY - BEIJING_OFFSET;
+	const beijingDayOfWeek = (ms) => new Date(ms + BEIJING_OFFSET).getUTCDay();
+	const isWeekend = (day) => day === 0 || day === 6;
+
+	/**
+	 * 找 now 前后两次计价切换时刻（epoch ms）。
+	 * 只有工作日有高峰窗口；周末整天是谷时，所以「上一次切换」会落在周五 18:00，
+	 * 「下一次切换」落在下周一 09:00。
+	 */
+	function priceBoundaries(now) {
+		const today = beijingDayStart(now);
+		const cuts = [];
+		for (let offset = -7; offset <= 8; offset += 1) {
+			const dayStart = today + offset * DAY;
+			if (isWeekend(beijingDayOfWeek(dayStart))) continue;
+			for (const [start, end] of PEAK_WINDOWS) {
+				cuts.push({ at: dayStart + start * MINUTE, peak: true });
+				cuts.push({ at: dayStart + end * MINUTE, peak: false });
+			}
+		}
+		cuts.sort((a, b) => a.at - b.at);
+		let prev = null;
+		let next = null;
+		for (const cut of cuts) {
+			if (cut.at <= now) prev = cut;
+			else if (!next) next = cut;
+		}
+		return { prev, next };
+	}
+
+	/** 把毫秒差写成「1 小时 23 分 / 42 分钟 / 不到 1 分钟」。 */
+	function formatCountdown(ms) {
+		const remain = Math.max(0, Number(ms) || 0);
+		const totalMinutes = Math.floor(remain / MINUTE);
+		if (totalMinutes < 1) return "不到 1 分钟";
+		if (totalMinutes < 60) return `${totalMinutes} 分钟`;
+		const hours = Math.floor(totalMinutes / 60);
+		const minutes = totalMinutes % 60;
+		return minutes ? `${hours} 小时 ${minutes} 分` : `${hours} 小时`;
+	}
+
+	/**
+	 * 现在是不是高峰计价（北京时间）+ 距下一次切换还有多久。
+	 * 工作日 9:00–12:00、14:00–18:00 为高峰；其余时间为谷时；周末全天谷价。
+	 */
+	function priceWindow(date = new Date()) {
+		const stamp = date instanceof Date ? date : new Date(date);
+		if (Number.isNaN(stamp.getTime())) {
+			return {
+				peak: false, weekend: false, minutes: 0, label: "谷时", detail: "现在计价更低",
+				window: "", nextAt: 0, nextPeak: false, remainMs: 0, progress: 0, nextText: "",
+			};
+		}
+		const now = stamp.getTime();
+		const shifted = new Date(now + BEIJING_OFFSET);
+		const day = shifted.getUTCDay(); // 0 = 周日
+		const minutes = shifted.getUTCHours() * 60 + shifted.getUTCMinutes();
+		const weekend = isWeekend(day);
+		const window = PEAK_WINDOWS.find(([start, end]) => minutes >= start && minutes < end) || null;
+		const peak = !weekend && Boolean(window);
+		const detail = peak
+			? `${clock(window[0])}–${clock(window[1])}`
+			: weekend ? "周末全天谷价" : "现在计价更低";
+		const { prev, next } = priceBoundaries(now);
+		const span = prev && next ? next.at - prev.at : 0;
+		const progress = span > 0 ? clamp((now - prev.at) / span, 0, 1) : 0;
+		const remainMs = next ? Math.max(0, next.at - now) : 0;
+		const nextPeak = Boolean(next && next.peak);
+		return {
+			peak,
+			weekend,
+			minutes,
+			label: peak ? "高峰" : "谷时",
+			detail,
+			window: window ? `${clock(window[0])}–${clock(window[1])}` : "",
+			nextAt: next ? next.at : 0,
+			nextPeak,
+			remainMs,
+			progress,
+			nextText: next ? `距${nextPeak ? "进入高峰" : "进入谷时"} ${formatCountdown(remainMs)}` : "",
+		};
+	}
+
 
 	/** 金额显示：CNY 用 ¥，其它币种写后缀。 */
 	function formatMoney(amount, currency = "") {
@@ -151,35 +239,6 @@
 		const amount = Number(info.total_balance !== undefined ? info.total_balance : json.total_balance);
 		if (!Number.isFinite(amount)) return { ok: false, amount: 0, currency: "" };
 		return { ok: true, amount, currency: typeof info.currency === "string" ? info.currency : "" };
-	}
-
-	/**
-	 * 现在是不是高峰计价（北京时间）。
-	 * 工作日 9:00–12:00、14:00–18:00 为高峰；其余时间为谷时；周末全天谷价。
-	 */
-	function priceWindow(date = new Date()) {
-		const stamp = date instanceof Date ? date : new Date(date);
-		if (Number.isNaN(stamp.getTime())) {
-			return { peak: false, weekend: false, minutes: 0, label: "谷时", detail: "现在计价更低", window: "" };
-		}
-		// 用 UTC 位移换算北京时间，不依赖运行环境的时区设置
-		const shifted = new Date(stamp.getTime() + 8 * 3600 * 1000);
-		const day = shifted.getUTCDay(); // 0 = 周日
-		const minutes = shifted.getUTCHours() * 60 + shifted.getUTCMinutes();
-		const weekend = day === 0 || day === 6;
-		const window = PEAK_WINDOWS.find(([start, end]) => minutes >= start && minutes < end) || null;
-		const peak = !weekend && Boolean(window);
-		const detail = peak
-			? `${clock(window[0])}–${clock(window[1])}`
-			: weekend ? "周末全天谷价" : "现在计价更低";
-		return {
-			peak,
-			weekend,
-			minutes,
-			label: peak ? "高峰" : "谷时",
-			detail,
-			window: window ? `${clock(window[0])}–${clock(window[1])}` : "",
-		};
 	}
 
 	/**
@@ -305,6 +364,8 @@
 		layoutSegments,
 		frameBounds,
 		clamp,
+		formatCountdown,
+		priceBoundaries,
 		formatMoney,
 		parseBalance,
 		priceWindow,
