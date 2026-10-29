@@ -97,6 +97,37 @@
 		"要不要一起听首歌？",
 	];
 
+	// 按在场角色分的默认彩蛋台词；键是角色 id，组合用 "id+id"（顺序无关，会排序）
+	const DEFAULT_EGG_LINES = {
+		mio: ["澪：今、今日はこのへんで…", "别、别盯着我看啦！", "澪：部费我会记好的。"],
+		ritsu: ["律：部费要省着点花啦。", "律：今天就轻松一下吧！", "律：哎嘿，又超支了？"],
+		yui: ["唯：わーい！", "唯：蛋糕！蛋糕！", "唯：今天也要加油哦～"],
+		tsumugi: ["䌷：我家有茶点，随便吃。", "䌷：要不要来我家喝茶？", "䌷：钱的事不用担心啦。"],
+		azusa: ["梓喵～今天也要加油哦。", "梓：前辈们别闹啦。", "梓：部费又花在哪了…"],
+		"mio+ritsu": ["律：澪，今天也别害羞啦。", "澪：律，别闹…"],
+		"azusa+yui": ["唯：梓喵，一起练琴吧！", "梓：唯前辈，音准…"],
+		"mio+yui": ["唯：澪，教我弹贝斯嘛。", "澪：唯，先把谱子看完…"],
+		"ritsu+tsumugi": ["䌷：律，茶点准备好了。", "律：䌷家的蛋糕最棒了！"],
+	};
+
+	/** 从若干 id 里取组合（size >= 2）。 */
+	function combinations(ids, size) {
+		const result = [];
+		const walk = (start, picked) => {
+			if (picked.length === size) {
+				result.push(picked.slice());
+				return;
+			}
+			for (let index = start; index < ids.length; index += 1) {
+				picked.push(ids[index]);
+				walk(index + 1, picked);
+				picked.pop();
+			}
+		};
+		walk(0, []);
+		return result;
+	}
+
 	// DeepSeek 计价窗口（北京时间，工作日）：9:00–12:00、14:00–18:00 为高峰。
 	const PEAK_WINDOWS = [[9 * 60, 12 * 60], [14 * 60, 18 * 60]];
 
@@ -333,6 +364,41 @@
 		return String(pool[Math.floor(Math.random() * pool.length)] || "");
 	}
 
+	/**
+	 * 双击彩蛋：按「在场的人」挑台词。
+	 * - 只有一个人在场：只出这个人的台词（lines[id]）
+	 * - 多人在场：先找组合台词（"id+id"，顺序无关），按 comboChance 概率触发；
+	 *   没命中就退回在场某一个人的单人台词
+	 * - lines 里没有的键用 DEFAULT_EGG_LINES 兜底，再没有就用 EGG_LINES
+	 */
+	function pickEgg(presentIds, options = {}) {
+		const ids = Array.isArray(presentIds) ? presentIds.filter(Boolean) : [];
+		const custom = options.lines && typeof options.lines === "object" ? options.lines : {};
+		const fallback = Array.isArray(options.fallback) && options.fallback.length ? options.fallback : EGG_LINES;
+		const chance = Number.isFinite(Number(options.comboChance)) ? clamp(Number(options.comboChance), 0, 1) : 0.5;
+		const table = {};
+		const normKey = (key) => String(key).split("+").map((part) => part.trim()).filter(Boolean).sort().join("+");
+		for (const key of Object.keys(DEFAULT_EGG_LINES)) table[normKey(key)] = DEFAULT_EGG_LINES[key];
+		for (const key of Object.keys(custom)) {
+			if (Array.isArray(custom[key]) && custom[key].length) table[normKey(key)] = custom[key];
+		}
+		const pick = (pool) => String(pool[Math.floor(Math.random() * pool.length)] || "");
+		const own = (id) => (Array.isArray(table[id]) && table[id].length ? pick(table[id]) : pick(fallback));
+		const keyOf = (list) => [...list].sort().join("+");
+		if (ids.length === 1) return own(ids[0]);
+		if (ids.length > 1) {
+			// 从人数多的组合往少的找，命中哪个就用哪个
+			for (let size = ids.length; size >= 2; size -= 1) {
+				for (const subset of combinations(ids, size)) {
+					const pool = table[keyOf(subset)];
+					if (Array.isArray(pool) && pool.length && Math.random() < chance) return pick(pool);
+				}
+			}
+			return own(ids[Math.floor(Math.random() * ids.length)]);
+		}
+		return pick(fallback);
+	}
+
 	/** 按余额挑一句台词；{money} 会替换成格式化后的金额。 */
 	function pickLine(kind, amount, currency, warnBelow) {
 		const table = LINES[kind] || LINES.ok;
@@ -410,6 +476,8 @@
 		rollAmount,
 		pickLine,
 		pickEggLine,
+		pickEgg,
+		DEFAULT_EGG_LINES,
 		statusInfo,
 		sanitizeSettings,
 	};

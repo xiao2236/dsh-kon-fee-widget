@@ -31,6 +31,10 @@
 				turnBubble: true,
 				panelDurationMs: 8000,
 				bubbleStyle: "cassette",
+				easterEgg: true,
+				easterEggLines: [],
+				eggLines: {},
+				eggComboChance: 0.5,
 			};
 			const POS_KEY = "dsh-kon-fee:pos";
 			const configListeners = new Set();
@@ -580,7 +584,11 @@
 						lastClick.current = 0;
 						hidePanel();
 						window.clearTimeout(eggTimer.current);
-						setEgg(Core.pickEggLine(config.easterEggLines));
+						setEgg(Core.pickEgg(visibleIds, {
+							lines: config.eggLines,
+							fallback: config.easterEggLines,
+							comboChance: config.eggComboChance,
+						}));
 						eggTimer.current = window.setTimeout(() => setEgg(""), 5200);
 						return;
 					}
@@ -591,7 +599,7 @@
 						if (open) hidePanel();
 						else { balance.refresh(); showPanel(); }
 					}, 240);
-				}, [config.easterEgg, config.easterEggLines, open, showPanel, hidePanel, balance]);
+				}, [config.easterEgg, config.easterEggLines, config.eggLines, config.eggComboChance, visibleIds, open, showPanel, hidePanel, balance]);
 
 				// 账本开着时点别处也收起
 				useEffect(() => {
