@@ -19,6 +19,7 @@
 			const TABLE = Core.TABLE;
 			const SNAP_DISTANCE = 24;
 			const PANEL_MS = 8000;
+const EGG_BEAT_MS = 1600;
 
 			// ---------------- 配置（宿主下发；设置页管「谁坐上桌」） ----------------
 			const DEFAULT_CONFIG = {
@@ -499,6 +500,7 @@
 				const tableRef = useRef(null);
 				const clickTimer = useRef(0);
 				const eggTimer = useRef(0);
+				const eggBeatTimer = useRef(0);
 				const lastClick = useRef(0);
 				const audioRef = useRef(null);
 
@@ -600,14 +602,28 @@
 						lastClick.current = 0;
 						hidePanel();
 						window.clearTimeout(eggTimer.current);
+						window.clearTimeout(eggBeatTimer.current);
 						const entry = Core.pickEgg(visibleIds, {
 							lines: config.eggLines,
 							fallback: config.easterEggLines,
 							comboChance: config.eggComboChance,
 						});
-						setEgg(Core.eggText(entry, config.lang));
+						// 组合对白一人一句地播：上一句 → 下一句；单人只有一句
+						const beats = Core.eggBeats(entry, config.lang);
+						setEgg(beats[0] || "");
 						if (entry.voice && config.voice !== false) playVoice(entry.voice);
-						eggTimer.current = window.setTimeout(() => setEgg(""), 5200);
+						if (beats.length > 1) {
+							let index = 1;
+							const step = () => {
+								if (index >= beats.length) return;
+								setEgg(beats[index]);
+								index += 1;
+								eggBeatTimer.current = window.setTimeout(step, EGG_BEAT_MS);
+							};
+							eggBeatTimer.current = window.setTimeout(step, EGG_BEAT_MS);
+						}
+						const total = Math.max(PANEL_MS, beats.length * EGG_BEAT_MS + 1200);
+						eggTimer.current = window.setTimeout(() => setEgg(""), total);
 						return;
 					}
 					lastClick.current = stamp;

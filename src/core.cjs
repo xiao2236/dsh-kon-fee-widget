@@ -161,6 +161,17 @@
 		if (lang === "ja") return value.ja || value.zh || "";
 		return value.zh || value.ja || "";
 	}
+
+	/**
+	 * 把一条台词拆成「一人一句」的节拍：组合对白用 ｜ 分隔，
+	 * 单人台词自然只有一拍。返回按顺序播放的句子数组。
+	 */
+	function eggBeats(entry, lang = "zh") {
+		return eggText(entry, lang)
+			.split("｜")
+			.map((part) => part.trim())
+			.filter(Boolean);
+	}
 	/** 从若干 id 里取组合（size >= 2）。 */
 	function combinations(ids, size) {
 		const result = [];
@@ -532,6 +543,7 @@
 		pickEggLine,
 		pickEgg,
 		eggText,
+		eggBeats,
 		normalizeEggEntry,
 		DEFAULT_EGG_LINES,
 		statusInfo,

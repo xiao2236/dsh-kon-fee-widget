@@ -162,6 +162,11 @@ test("双击彩蛋：单人只出本人台词，组合按概率触发，键顺�
 		assert.ok(singlePool.has(line), "没有组合命中时退回单人的台词");
 	}
 
+	// 组合对白按 ｜ 拆成一人一句的节拍
+	assert.deepEqual(Core.eggBeats({ zh: "澪：甲｜律：乙", ja: "" }), ["澪：甲", "律：乙"]);
+	assert.deepEqual(Core.eggBeats({ zh: "单人一句", ja: "" }), ["单人一句"]);
+	assert.deepEqual(Core.eggBeats({ ja: "唯：A｜梓：B", zh: "" }, "ja"), ["唯：A", "梓：B"]);
+
 	// 自定义组合，键顺序反过来也认
 	const custom = Core.eggText(Core.pickEgg(["ritsu", "mio"], { lines: { "ritsu+mio": ["自定义组合"] }, comboChance: 1 }), "zh");
 	assert.equal(custom, "自定义组合");
