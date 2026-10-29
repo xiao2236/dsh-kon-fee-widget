@@ -133,17 +133,17 @@
 .konfee-menu-btn:hover{background:rgba(127,127,127,.08)}
 .konfee-panel{position:fixed;transform:translate(-50%,-100%);box-sizing:border-box;border-radius:12px;color:#4a3d33;box-shadow:0 18px 38px rgba(60,45,30,.3);pointer-events:none;z-index:2147481910;animation:konfee-pop .2s cubic-bezier(.2,1.5,.45,1)}
 .konfee-panel.is-below{transform:translate(-50%,0)}
-.konfee-panel.is-cassette{width:300px;height:196px;background:url(/dsh-kon-fee-widget/ui/cassette.png) center/100% 100% no-repeat}
-.konfee-panel.is-mascot{width:355px;height:266px;background:url(/dsh-kon-fee-widget/ui/mascot.png) center/100% 100% no-repeat}
-.konfee-panel.is-cassette-full{width:355px;height:266px;background:url(/dsh-kon-fee-widget/ui/cassette-full.png) center/100% 100% no-repeat}
+.konfee-panel.is-cassette{width:260px;height:170px;background:url(/dsh-kon-fee-widget/ui/cassette.png) center/100% 100% no-repeat}
+.konfee-panel.is-mascot{width:320px;height:240px;background:url(/dsh-kon-fee-widget/ui/mascot.png) center/100% 100% no-repeat}
+.konfee-panel.is-cassette-full{width:300px;height:226px;background:url(/dsh-kon-fee-widget/ui/cassette-full.png) center/100% 100% no-repeat}
 .konfee-panel.is-plain{width:250px;padding:11px 14px 10px;background:linear-gradient(180deg,#fffdf8 0%,#fdf6e9 100%);border:1px solid rgba(163,131,94,.34)}
 .konfee-logo{position:absolute;right:10px;bottom:4px;width:52px;height:auto;opacity:.9;pointer-events:none}
 .konfee-body{position:absolute;display:flex;flex-direction:column;justify-content:space-between;padding:5px 8px}
-.konfee-panel.is-cassette .konfee-body{left:28px;right:26px;top:28px;bottom:34px}
-.konfee-panel.is-mascot .konfee-body{left:44px;right:42px;top:44px;bottom:103px}
-.konfee-panel.is-cassette-full .konfee-body{left:100px;right:92px;top:82px;bottom:72px}
+.konfee-panel.is-cassette .konfee-body{left:24px;right:22px;top:24px;bottom:34px}
+.konfee-panel.is-mascot .konfee-body{left:40px;right:38px;top:40px;bottom:88px}
+.konfee-panel.is-cassette-full .konfee-body{left:84px;right:76px;top:66px;bottom:60px}
 .konfee-panel.is-plain .konfee-body{position:static;padding:0;background:transparent;box-shadow:none}
-@keyframes konfee-pop{from{opacity:0;transform:translate(-50%,-100%) translateY(5px) scale(.96)}to{opacity:1;transform:translate(-50%,-100%) translateY(0) scale(1)}}
+@keyframes konfee-pop{from{opacity:0}to{opacity:1}}
 .konfee-head{display:flex;align-items:center;justify-content:flex-end;gap:8px}
 .konfee-title{font-size:10px;letter-spacing:.16em;color:#ab8a68;font-weight:600;white-space:nowrap}
 .konfee-amount-row{display:flex;align-items:baseline;gap:3px;margin:3px 0 5px}
@@ -174,7 +174,7 @@
 .konfee-spend span{opacity:.72;font-variant-numeric:tabular-nums}
 .konfee-spend .konfee-spend-tag{opacity:1;font-size:9.5px;padding:1.5px 6px;border-radius:999px;background:rgba(255,255,255,.15)}
 .konfee-spend.is-below{transform:translate(-50%,0)}
-@keyframes konfee-spend-in{from{opacity:0;transform:translate(-50%,-100%) translateY(4px)}to{opacity:1;transform:translate(-50%,-100%) translateY(0)}}
+@keyframes konfee-spend-in{from{opacity:0}to{opacity:1}}
 .konfee-egg{position:fixed;transform:translate(-50%,-100%);max-width:270px;padding:9px 13px;border-radius:14px;background:#fff8e6;border:1px solid rgba(163,131,94,.35);box-shadow:0 12px 26px rgba(60,45,30,.24);color:#5a4632;font-size:12.5px;line-height:1.5;pointer-events:none;z-index:2147481912;white-space:nowrap;animation:konfee-spend-in .22s cubic-bezier(.2,1.4,.4,1)}
 .konfee-egg.is-below{transform:translate(-50%,0)}
 .konfee-set{padding:2px 0 26px;font-size:13px;line-height:1.6;color:inherit}
@@ -685,7 +685,7 @@
 				};
 
 				const panelStyle = config.bubbleStyle || "cassette";
-				const PANEL_SIZES = { cassette: { width: 300, height: 196 }, "cassette-full": { width: 355, height: 266 }, mascot: { width: 355, height: 266 }, plain: { width: 250, height: 160 } };
+				const PANEL_SIZES = { cassette: { width: 260, height: 170 }, "cassette-full": { width: 300, height: 226 }, mascot: { width: 320, height: 240 }, plain: { width: 230, height: 150 } };
 				const panelSize = PANEL_SIZES[panelStyle] || PANEL_SIZES.cassette;
 				const PANEL_HALF = Math.round(panelSize.width / 2) + 8;
 				const panelLeft = Core.clamp(
