@@ -10,7 +10,8 @@ DSH 上的一个小挂件：**原版的大茶桌**当底座，轻音部五个人
 - 拖拽移动、四边吸附、按压 Q 弹；右上角**齿轮**菜单可直接改大小（**气泡跟着一起缩放**）、一键「回到右下角」（点齿轮会先收起账本）
 - 缩放走 CSS `transform: scale()`，不改布局、不重绘 canvas，拖滑杆不闪
 - **双击茶桌弹彩蛋台词**：按**在场的人**分配——只有一个人时只出这个人的台词；多人在场时组合台词按 `eggComboChance` 概率触发（没命中退回单人）；点茶桌外任意处收起账本
-- 彩蛋台词配置：`eggLines`（`"mio": [...]`、`"mio+ritsu": [...]`）、`eggComboChance`、兜底 `easterEggLines`
+- 彩蛋台词配置：`eggLines`（`"mio": [...]`、`"mio+ritsu": [...]`，每条可写 `{ "zh": "...", "ja": "...", "voice": "xxx.mp3" }`）、`eggComboChance`、`lang`（zh/ja）、`voice`、兜底 `easterEggLines`
+- 语音：台词里的 `voice` 指向 `assets/voices/` 下的音频文件（mp3/ogg/wav），`voice: false` 可整体关闭
 - **每轮对话结束弹一条消耗气泡**：`本轮 ¥0.012 · 1.2k tokens · 谷时`（宿主订阅 `session/event`，按官方价目表估算）
 - 余额低于阈值时账本数字变红、台词换成"省钱"版
 - 设置页只有两块：**坐上桌的人**（五个按钮，勾掉谁就连它那段桌子一起收起；五个全不勾 → 整张桌子不显示）和**编辑配置**（弹窗直接改 JSON）；其他旋钮也可以手改 `~/.dsh/kon-fee-widget.json`（带注释的 JSON）
