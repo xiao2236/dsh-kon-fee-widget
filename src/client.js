@@ -175,6 +175,8 @@
 .konfee-spend .konfee-spend-tag{opacity:1;font-size:9.5px;padding:1.5px 6px;border-radius:999px;background:rgba(255,255,255,.15)}
 .konfee-spend.is-below{transform:translate(-50%,0)}
 @keyframes konfee-spend-in{from{opacity:0;transform:translate(-50%,-100%) translateY(4px)}to{opacity:1;transform:translate(-50%,-100%) translateY(0)}}
+.konfee-egg{position:fixed;transform:translate(-50%,-100%);max-width:270px;padding:9px 13px;border-radius:14px;background:#fff8e6;border:1px solid rgba(163,131,94,.35);box-shadow:0 12px 26px rgba(60,45,30,.24);color:#5a4632;font-size:12.5px;line-height:1.5;pointer-events:none;z-index:2147481912;white-space:nowrap;animation:konfee-spend-in .22s cubic-bezier(.2,1.4,.4,1)}
+.konfee-egg.is-below{transform:translate(-50%,0)}
 .konfee-set{padding:2px 0 26px;font-size:13px;line-height:1.6;color:inherit}
 .konfee-set h2{font-size:18px;font-weight:650;margin:0 0 4px}
 .konfee-set-sub{font-size:12px;opacity:.6;margin:0 0 16px}
@@ -480,10 +482,15 @@
 				const [now, setNow] = useState(() => Date.now());
 				const [spend, setSpend] = useState(null);
 				const [menuOpen, setMenuOpen] = useState(false);
+				const [egg, setEgg] = useState("");
 				const dragRef = useRef(null);
 				const panelTimer = useRef(0);
 				const scaleTimer = useRef(0);
 				const menuRef = useRef(null);
+				const tableRef = useRef(null);
+				const clickTimer = useRef(0);
+				const eggTimer = useRef(0);
+				const lastClick = useRef(0);
 
 				// 外部改了 scale（比如设置页/配置文件）时同步滑杆
 				useEffect(() => { setScaleDraft(config.scale); }, [config.scale]);
@@ -560,6 +567,43 @@
 					window.clearTimeout(panelTimer.current);
 				}, []);
 
+				// 单击：开/关账本（开彩蛋时延迟一点，等双击判定）；双击：弹一句彩蛋
+				const clickTable = useCallback(() => {
+					if (config.easterEgg === false) {
+						if (open) hidePanel();
+						else { balance.refresh(); showPanel(); }
+						return;
+					}
+					const stamp = Date.now();
+					if (stamp - lastClick.current < 320) {
+						window.clearTimeout(clickTimer.current);
+						lastClick.current = 0;
+						hidePanel();
+						window.clearTimeout(eggTimer.current);
+						setEgg(Core.pickEggLine(config.easterEggLines));
+						eggTimer.current = window.setTimeout(() => setEgg(""), 5200);
+						return;
+					}
+					lastClick.current = stamp;
+					window.clearTimeout(clickTimer.current);
+					clickTimer.current = window.setTimeout(() => {
+						lastClick.current = 0;
+						if (open) hidePanel();
+						else { balance.refresh(); showPanel(); }
+					}, 240);
+				}, [config.easterEgg, config.easterEggLines, open, showPanel, hidePanel, balance]);
+
+				// 账本开着时点别处也收起
+				useEffect(() => {
+					if (!open) return undefined;
+					const onDown = (event) => {
+						if (tableRef.current && tableRef.current.contains(event.target)) return;
+						hidePanel();
+					};
+					document.addEventListener("pointerdown", onDown, true);
+					return () => document.removeEventListener("pointerdown", onDown, true);
+				}, [open, hidePanel]);
+
 				if (!config.visible) return null;
 				// 一个人都没选：整张桌子也不显示
 				if (!showSeats) return null;
@@ -618,12 +662,7 @@
 					setPressing(false);
 					setDragging(false);
 					if (!drag.moved) {
-						if (open) {
-							hidePanel();
-						} else {
-							balance.refresh();
-							showPanel();
-						}
+						clickTable();
 						return;
 					}
 					const next = Core.snapToEdge(pos, size, { width: window.innerWidth, height: window.innerHeight }, { enabled: config.snap, threshold: SNAP_DISTANCE });
@@ -673,8 +712,9 @@
 						},
 						role: "button",
 						tabIndex: 0,
+						ref: tableRef,
 						"aria-label": "轻音部费罐：点击查看余额与峰谷",
-						title: "点击看部费 · 拖动挪位置 · 右键刷新",
+						title: "点击看部费 · 双击彩蛋 · 拖动挪位置 · 右键刷新",
 						onPointerDown,
 						onPointerMove,
 						onPointerUp,
@@ -705,7 +745,15 @@
 							"data-konfee": "gear",
 							onPointerDown: (event) => event.stopPropagation(),
 							onPointerUp: (event) => event.stopPropagation(),
-							onClick: (event) => { event.stopPropagation(); setMenuOpen((value) => !value); },
+							onClick: (event) => {
+								event.stopPropagation();
+								// 账本/彩蛋挡着齿轮时，先收起它们再开菜单
+								hidePanel();
+								setEgg("");
+								window.clearTimeout(clickTimer.current);
+								lastClick.current = 0;
+								setMenuOpen((value) => !value);
+							},
 						}, "⚙"),
 						menuOpen ? h("div", {
 							className: `konfee-menu${menuBelow ? " is-below" : ""}`,
@@ -732,6 +780,14 @@
 							),
 						) : null,
 					),
+					egg ? h("div", {
+						className: `konfee-egg${panelBelow ? " is-below" : ""}`,
+						"data-konfee": "egg",
+						style: {
+							left: `${Math.round(panelLeft)}px`,
+							top: `${Math.round(panelBelow ? pos.y + size.height + 12 : pos.y - 10)}px`,
+						},
+					}, egg) : null,
 					spend && !open ? h("div", {
 						className: `konfee-spend${panelBelow ? " is-below" : ""}`,
 						"data-konfee": "spend",

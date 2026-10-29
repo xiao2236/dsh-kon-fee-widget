@@ -83,6 +83,20 @@
 		loading: ["翻账本中…", "让我想想今天花了多少…"],
 	};
 
+	// 双击彩蛋：轻音部味的小句子（配置里 easterEggLines 可以覆盖）
+	const EGG_LINES = [
+		"放学后茶会，开始！",
+		"ふわふわ時間～",
+		"再来一块蛋糕怎么样？",
+		"梓喵～今天也要加油哦。",
+		"唯：わーい！",
+		"律：部费要省着点花啦。",
+		"䌷：我家有茶点，随便吃。",
+		"澪：别、别盯着我看啦！",
+		"轻音部，活动开始！",
+		"要不要一起听首歌？",
+	];
+
 	// DeepSeek 计价窗口（北京时间，工作日）：9:00–12:00、14:00–18:00 为高峰。
 	const PEAK_WINDOWS = [[9 * 60, 12 * 60], [14 * 60, 18 * 60]];
 
@@ -313,6 +327,12 @@
 		return start + (end - start) * eased;
 	}
 
+	/** 随便挑一句彩蛋台词；传了自定义列表就用自定义的。 */
+	function pickEggLine(lines) {
+		const pool = Array.isArray(lines) && lines.length ? lines : EGG_LINES;
+		return String(pool[Math.floor(Math.random() * pool.length)] || "");
+	}
+
 	/** 按余额挑一句台词；{money} 会替换成格式化后的金额。 */
 	function pickLine(kind, amount, currency, warnBelow) {
 		const table = LINES[kind] || LINES.ok;
@@ -372,6 +392,7 @@
 		FRAME,
 		ROSTER,
 		LINES,
+		EGG_LINES,
 		PEAK_WINDOWS,
 		PEAK_TEXT,
 		segmentBounds,
@@ -388,6 +409,7 @@
 		defaultPosition,
 		rollAmount,
 		pickLine,
+		pickEggLine,
 		statusInfo,
 		sanitizeSettings,
 	};
