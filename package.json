@@ -53,8 +53,8 @@
   "scripts": {
     "build": "node scripts/build-client.mjs",
     "check": "node scripts/check.mjs",
-    "test:unit": "node --test test/core.test.mjs",
-    "test": "node scripts/build-client.mjs && node scripts/check.mjs && node --test test/core.test.mjs"
+    "test:unit": "node --test test/core.test.mjs test/host.test.mjs",
+    "test": "node scripts/build-client.mjs && node scripts/check.mjs && node --test test/core.test.mjs test/host.test.mjs"
   },
   "keywords": [
     "dsh",
