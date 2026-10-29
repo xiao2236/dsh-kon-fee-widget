@@ -163,6 +163,7 @@
 .konfee-set-row:first-child{border-top:0}
 .konfee-set-name{flex:1;min-width:0}
 .konfee-set-name b{display:block;font-size:13px;font-weight:600}
+.konfee-set-label{flex:1;min-width:0;font-size:13px;font-weight:600}
 .konfee-set-name small{display:block;font-size:11px;opacity:.55}
 .konfee-range{width:150px;flex:none;accent-color:#8a6aa8}
 .konfee-value{width:64px;text-align:right;font-size:12px;opacity:.6;flex:none;font-variant-numeric:tabular-nums}
@@ -722,13 +723,7 @@
 
 			function FeeSettings() {
 				const config = useConfig();
-				const balance = useBalance(config);
-				const status = Core.statusInfo(balance);
-				const peak = Core.priceWindow();
 				const toggleCharacter = (id) => updateConfig({ characters: { ...config.characters, [id]: !config.characters[id] } });
-				const copyPath = () => {
-					try { navigator.clipboard.writeText(configPath || "~/.dsh/kon-fee-widget.json"); } catch { /* 剪贴板不可用就忽略 */ }
-				};
 				const [editing, setEditing] = useState(false);
 				const [draft, setDraft] = useState("");
 				const [error, setError] = useState("");
@@ -755,13 +750,9 @@
 				return h("div", { className: "konfee-set" },
 					styleElement(),
 					h("h2", null, "轻音部费罐"),
-					h("p", { className: "konfee-set-sub" }, "点一下茶桌弹账本；下面管谁坐上桌，其他旋钮可以在页面里直接编辑。"),
 					h("section", { className: "konfee-set-card" },
 						h("div", { className: "konfee-set-row" },
-							h("div", { className: "konfee-set-name" },
-								h("b", null, "坐上桌的人"),
-								h("small", null, "勾掉谁，谁就连同自己那一段桌子一起收起；全不勾则整张桌子都不显示"),
-							),
+							h("b", { className: "konfee-set-label" }, "坐上桌的人"),
 							h("div", { className: "konfee-chars" },
 								...Core.ROSTER.map((member) => h("button", {
 									key: member.id,
@@ -773,36 +764,10 @@
 								}, member.name)),
 							),
 						),
-					),
-					h("section", { className: "konfee-set-card" },
 						h("div", { className: "konfee-set-row" },
-							h("div", { className: "konfee-set-name" },
-								h("b", null, "配置"),
-								h("small", null, "大小、贴边、刷新间隔、低余额阈值、每轮气泡、账本停留时长"),
-							),
-							h("div", { style: { display: "flex", alignItems: "center", gap: "6px" } },
-								h("button", { type: "button", className: "konfee-btn is-primary", onClick: openEditor }, "编辑配置"),
-								h("button", { type: "button", className: "konfee-btn", onClick: copyPath }, "复制路径"),
-							),
+							h("b", { className: "konfee-set-label" }, "配置"),
+							h("button", { type: "button", className: "konfee-btn is-primary", onClick: openEditor }, "编辑配置"),
 						),
-						h("div", { className: "konfee-set-row" },
-							h("div", { className: "konfee-set-name" },
-								h("b", null, "文件"),
-								h("small", null, "也可以直接改这个带注释的 JSON，改完刷新页面生效"),
-							),
-							h("code", { className: "konfee-path" }, configPath || "~/.dsh/kon-fee-widget.json"),
-						),
-						h("div", { className: "konfee-set-row" },
-							h("div", { className: "konfee-set-name" },
-								h("b", null, "当前余额"),
-								h("small", null, `${status.text} · 现在是${peak.label}${peak.nextText ? `，${peak.nextText}` : ""}`),
-							),
-							h("div", { style: { display: "flex", alignItems: "center", gap: "8px" } },
-								h("span", { className: "konfee-value", style: { width: "auto" } }, balance.ok || balance.stale ? Core.formatMoney(balance.amount, balance.currency) : "—"),
-								h("button", { type: "button", className: "konfee-btn", onClick: () => balance.refresh() }, "刷新"),
-							),
-						),
-						h("p", { className: "konfee-note" }, "余额由宿主读凭据后请求 DeepSeek，API key 不会下发到页面。"),
 					),
 					editing ? h("div", {
 						className: "konfee-modal",
@@ -811,7 +776,6 @@
 					},
 						h("div", { className: "konfee-modal-card" },
 							h("div", { className: "konfee-modal-title" }, "编辑配置"),
-							h("div", { className: "konfee-modal-sub" }, "保存后会写回配置文件（注释由程序重新生成）。字段说明见文件里的注释。"),
 							h("textarea", {
 								className: "konfee-json",
 								value: draft,
