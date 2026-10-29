@@ -50,6 +50,8 @@ for (const rel of [
 	"src/client.js",
 	"lib/index.js",
 	"lib/client.js",
+	"assets/ui/cassette.png",
+	"assets/ui/logo.png",
 	"assets/table/characters.json",
 	"assets/table/desk00.png",
 	"assets/table/desk01.png",

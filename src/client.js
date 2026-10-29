@@ -130,10 +130,10 @@
 .konfee-menu-value{width:38px;text-align:right;flex:none;font-variant-numeric:tabular-nums;color:#8a6a4a}
 .konfee-menu-btn{width:100%;border:1px solid rgba(127,127,127,.3);background:transparent;border-radius:8px;padding:5px 8px;font:inherit;font-size:12px;cursor:pointer;color:inherit}
 .konfee-menu-btn:hover{background:rgba(127,127,127,.08)}
-.konfee-panel{position:fixed;transform:translate(-50%,-100%);width:238px;box-sizing:border-box;padding:11px 14px 10px;border-radius:16px;background:linear-gradient(180deg,#fffdf8 0%,#fdf6e9 100%);color:#4a3d33;border:1px solid rgba(163,131,94,.34);box-shadow:0 16px 36px rgba(76,52,28,.24),0 2px 7px rgba(76,52,28,.12),inset 0 1px 0 rgba(255,255,255,.9);pointer-events:none;z-index:2147481910;animation:konfee-pop .2s cubic-bezier(.2,1.5,.45,1)}
+.konfee-panel{position:fixed;transform:translate(-50%,-100%);width:300px;height:196px;box-sizing:border-box;border-radius:12px;background:url(/dsh-kon-fee-widget/ui/cassette.png) center/100% 100% no-repeat;color:#4a3d33;box-shadow:0 18px 38px rgba(60,45,30,.3);pointer-events:none;z-index:2147481910;animation:konfee-pop .2s cubic-bezier(.2,1.5,.45,1)}
 .konfee-panel.is-below{transform:translate(-50%,0)}
-.konfee-panel:after{content:"";position:absolute;left:50%;top:100%;width:9px;height:9px;margin-left:-5px;margin-top:-5px;background:#fdf6e9;border-right:1px solid rgba(163,131,94,.34);border-bottom:1px solid rgba(163,131,94,.34);transform:rotate(45deg)}
-.konfee-panel.is-below:after{top:-5px;margin-top:0;transform:rotate(-135deg)}
+.konfee-logo{position:absolute;right:10px;bottom:4px;width:52px;height:auto;opacity:.9;pointer-events:none}
+.konfee-body{position:absolute;left:28px;right:26px;top:28px;bottom:34px;display:flex;flex-direction:column;justify-content:space-between;padding:5px 8px;border-radius:8px;background:rgba(255,253,248,.86);box-shadow:inset 0 0 0 1px rgba(163,131,94,.14)}
 @keyframes konfee-pop{from{opacity:0;transform:translate(-50%,-100%) translateY(5px) scale(.96)}to{opacity:1;transform:translate(-50%,-100%) translateY(0) scale(1)}}
 .konfee-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .konfee-title{font-size:10px;letter-spacing:.16em;color:#ab8a68;font-weight:600;white-space:nowrap}
@@ -635,7 +635,7 @@
 					}
 				};
 
-				const PANEL_HALF = 105;
+				const PANEL_HALF = 158;
 				const panelLeft = Core.clamp(
 					pos.x + size.width / 2,
 					8 + PANEL_HALF,
@@ -738,31 +738,34 @@
 							top: `${Math.round(panelBelow ? pos.y + size.height + 12 : pos.y - 10)}px`,
 						},
 					},
-						h("div", { className: "konfee-head" },
-							h("span", { className: "konfee-title" }, "轻音部 · 部费账本"),
-							h("span", { className: `konfee-tag ${peak.peak ? "is-peak" : "is-valley"}` }, peak.peak ? "高峰" : "谷时"),
-						),
-						h("div", { className: "konfee-amount-row" },
-							moneyParts[0] ? h("span", { className: "konfee-currency" }, moneyParts[0]) : null,
-							h("b", { className: `konfee-amount tone-${tone}` }, moneyParts[1]),
-						),
-						h("div", { className: "konfee-today" },
-							today && today.turns > 0
-								? `今天 ${Core.formatCost(today.amount)} · ${today.turns} 轮`
-								: "今天还没花钱",
-						),
-						h("div", { className: "konfee-schedule" }, `高峰 ${Core.PEAK_TEXT}`),
-						h("div", { className: "konfee-meter" },
-							h("div", { className: "konfee-track" },
-								h("i", {
-									className: peak.peak ? "is-peak" : "is-valley",
-									style: { width: `${Math.round(peak.progress * 100)}%` },
-								}),
+						h("img", { className: "konfee-logo", src: "/dsh-kon-fee-widget/ui/logo.png", alt: "" }),
+						h("div", { className: "konfee-body" },
+							h("div", { className: "konfee-head" },
+								h("span", { className: "konfee-title" }, "轻音部 · 部费账本"),
+								h("span", { className: `konfee-tag ${peak.peak ? "is-peak" : "is-valley"}` }, peak.peak ? "高峰" : "谷时"),
 							),
-							h("div", { className: "konfee-meter-text" }, h("span", null, peak.nextText || "计价时段")),
-						),
-						h("div", { className: "konfee-foot" },
-							h("span", { className: `konfee-status tone-${status.tone}` }, status.text),
+							h("div", { className: "konfee-amount-row" },
+								moneyParts[0] ? h("span", { className: "konfee-currency" }, moneyParts[0]) : null,
+								h("b", { className: `konfee-amount tone-${tone}` }, moneyParts[1]),
+							),
+							h("div", { className: "konfee-today" },
+								today && today.turns > 0
+									? `今天 ${Core.formatCost(today.amount)} · ${today.turns} 轮`
+									: "今天还没花钱",
+							),
+							h("div", { className: "konfee-schedule" }, `高峰 ${Core.PEAK_TEXT}`),
+							h("div", { className: "konfee-meter" },
+								h("div", { className: "konfee-track" },
+									h("i", {
+										className: peak.peak ? "is-peak" : "is-valley",
+										style: { width: `${Math.round(peak.progress * 100)}%` },
+									}),
+								),
+								h("div", { className: "konfee-meter-text" }, h("span", null, peak.nextText || "计价时段")),
+							),
+							h("div", { className: "konfee-foot" },
+								h("span", { className: `konfee-status tone-${status.tone}` }, status.text),
+							),
 						),
 					) : null,
 				);
