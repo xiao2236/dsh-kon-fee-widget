@@ -20,57 +20,91 @@
 			const SNAP_DISTANCE = 24;
 			const PANEL_MS = 8000;
 
-			// ---------------- 设置存储 ----------------
-			const listeners = new Set();
-			let currentSettings = null;
+			// ---------------- 配置（宿主下发；设置页只留「显示人物」） ----------------
+			const DEFAULT_CONFIG = {
+				visible: true,
+				showCharacters: true,
+				scale: 1,
+				snap: true,
+				refreshSeconds: 60,
+				warnBelow: 5,
+				turnBubble: true,
+				panelDurationMs: 8000,
+			};
+			const POS_KEY = "dsh-kon-fee:pos";
+			const configListeners = new Set();
+			let currentConfig = null;
+			let configPath = "";
+			let configLoaded = false;
 
-			function readStored() {
+			function readPos() {
 				try {
-					const raw = localStorage.getItem(Core.STORE_KEY);
+					const raw = localStorage.getItem(POS_KEY);
 					const parsed = raw ? JSON.parse(raw) : null;
-					return parsed && typeof parsed === "object" ? parsed : null;
+					return parsed && Number.isFinite(Number(parsed.x)) && Number.isFinite(Number(parsed.y))
+						? { x: Math.round(Number(parsed.x)), y: Math.round(Number(parsed.y)) }
+						: null;
 				} catch {
 					return null;
 				}
 			}
 
-			function persist(settings) {
+			function writePos(pos) {
 				try {
-					localStorage.setItem(Core.STORE_KEY, JSON.stringify(settings));
+					localStorage.setItem(POS_KEY, JSON.stringify({ x: Math.round(pos.x), y: Math.round(pos.y) }));
 				} catch {
-					/* 隐私模式下不可写，内存状态仍然有效 */
+					/* 隐私模式下不可写 */
 				}
 			}
 
-			function notify() {
-				for (const fn of listeners) {
-					try { fn(); } catch { /* 单个订阅失败不影响别人 */ }
+			function getConfig() {
+				return currentConfig || DEFAULT_CONFIG;
+			}
+
+			function setConfig(patch, path) {
+				currentConfig = { ...getConfig(), ...(patch && typeof patch === "object" ? patch : {}) };
+				if (typeof path === "string" && path) configPath = path;
+				for (const listener of configListeners) {
+					try { listener(); } catch { /* 单个订阅失败不影响别人 */ }
 				}
 			}
 
-			function getSettings() {
-				if (!currentSettings) currentSettings = Core.sanitizeSettings(readStored() || {});
-				return currentSettings;
+			async function loadConfig() {
+				if (configLoaded) return;
+				configLoaded = true;
+				try {
+					const response = await fetch(`${ASSET_BASE}/config`, { cache: "no-store" });
+					const body = response.ok ? await response.json() : null;
+					if (body && body.config) setConfig(body.config, body.path);
+				} catch {
+					/* 宿主不给就只用默认配置 */
+				}
 			}
 
-			function updateSettings(patch) {
-				const previous = getSettings();
-				const raw = typeof patch === "function" ? patch(previous) : patch;
-				const next = Core.sanitizeSettings({ ...previous, ...raw });
-				currentSettings = next;
-				persist(next);
-				notify();
-				return next;
+			async function updateConfig(patch) {
+				setConfig(patch);
+				try {
+					const response = await fetch(`${ASSET_BASE}/config`, {
+						method: "POST",
+						headers: { "content-type": "application/json" },
+						body: JSON.stringify(patch),
+					});
+					const body = response.ok ? await response.json() : null;
+					if (body && body.config) setConfig(body.config, body.path);
+				} catch {
+					/* 写失败时页面上已经生效，下次刷新回退 */
+				}
 			}
 
-			function useSettings() {
+			function useConfig() {
 				const [, force] = useState(0);
 				useEffect(() => {
 					const listener = () => force((value) => value + 1);
-					listeners.add(listener);
-					return () => listeners.delete(listener);
+					configListeners.add(listener);
+					loadConfig();
+					return () => configListeners.delete(listener);
 				}, []);
-				return getSettings();
+				return getConfig();
 			}
 
 			// ---------------- 样式 ----------------
@@ -139,6 +173,7 @@
 .konfee-switch.is-on i{transform:translateX(16px)}
 .konfee-switch:disabled{opacity:.45;cursor:default}
 .konfee-chars{display:flex;flex-wrap:wrap;gap:6px}
+.konfee-path{font-size:10.5px;color:#8a7a6a;background:rgba(127,127,127,.08);padding:3px 7px;border-radius:6px;word-break:break-all;max-width:48%;text-align:right}
 `;
 
 			function styleElement() {
@@ -163,7 +198,7 @@
 				stale: false,
 			};
 
-			function useBalance(settings) {
+			function useBalance(config) {
 				const [state, setState] = useState(EMPTY_BALANCE);
 				const alive = useRef(true);
 
@@ -204,24 +239,24 @@
 				useEffect(() => {
 					alive.current = true;
 					refresh();
-					const interval = Math.max(10, Number(settings.refreshSeconds) || 60) * 1000;
+					const interval = Math.max(10, Number(config.refreshSeconds) || 60) * 1000;
 					const timer = window.setInterval(refresh, interval);
 					return () => {
 						alive.current = false;
 						window.clearInterval(timer);
 					};
-				}, [refresh, settings.refreshSeconds]);
+				}, [refresh, config.refreshSeconds]);
 
 				return { ...state, refresh };
 			}
 
 			/** 轮询宿主记的「上一轮消耗」；只有出现新的 at 才算新的一轮。 */
-			function useTurnCost(settings) {
+			function useTurnCost(config) {
 				const [turn, setTurn] = useState(null);
 				const seen = useRef(0);
 				const primed = useRef(false);
 				useEffect(() => {
-					if (!settings.turnBubble) return undefined;
+					if (!config.turnBubble) return undefined;
 					let alive = true;
 					const poll = async () => {
 						try {
@@ -248,7 +283,7 @@
 						alive = false;
 						window.clearInterval(timer);
 					};
-				}, [settings.turnBubble]);
+				}, [config.turnBubble]);
 				return turn;
 			}
 
@@ -391,22 +426,20 @@
 
 			// ---------------- 挂件 ----------------
 			function FeeWidget() {
-				const settings = useSettings();
-				const balance = useBalance(settings);
-				const turn = useTurnCost(settings);
+				const config = useConfig();
+				const balance = useBalance(config);
+				const turn = useTurnCost(config);
 				const assets = useTableAssets();
-				// 座位段：全展示 = 五段；关掉后按勾选抽掉对应段，桌子跟着变短
-				const selected = TABLE.seats.filter((seat) => settings.characters[seat.id]).map((seat) => seat.id);
-				const seatIds = settings.showAll ? TABLE.seats.map((seat) => seat.id) : selected;
-				const layout = Core.layoutSegments(seatIds.length ? seatIds : null);
-				// 人物立绘比座位段宽，抽段后会探出桌子两端；盒子按「桌子 ∪ 人」算，
-				// 免得贴边时人被视口裁掉。
+				// 人物要么五个人全显示、要么全隐藏；桌子本身始终是完整的那张
+				const showSeats = config.showCharacters;
+				const layout = Core.layoutSegments(null);
+				// 人物立绘比座位段宽，盒子按「桌子 ∪ 人」算，免得贴边时人被视口裁掉。
 				const frame = Core.frameBounds(layout);
 				const size = {
-					width: Math.round(frame.width * settings.scale),
-					height: Math.round(TABLE.height * settings.scale),
+					width: Math.round(frame.width * config.scale),
+					height: Math.round(TABLE.height * config.scale),
 				};
-				const [pos, setPos] = useState(() => settings.pos || Core.defaultPosition(size, { width: window.innerWidth, height: window.innerHeight }));
+				const [pos, setPos] = useState(() => readPos() || Core.defaultPosition(size, { width: window.innerWidth, height: window.innerHeight }));
 				const [pressing, setPressing] = useState(false);
 				const [dragging, setDragging] = useState(false);
 				const [open, setOpen] = useState(false);
@@ -415,7 +448,7 @@
 				const dragRef = useRef(null);
 				const panelTimer = useRef(0);
 
-				// 新一轮结算 → 弹 6 秒小气泡
+				// 新一轮结算 → 弹一条小气泡
 				useEffect(() => {
 					if (!turn) return undefined;
 					setSpend(turn);
@@ -423,29 +456,24 @@
 					return () => window.clearTimeout(timer);
 				}, [turn]);
 
-				// 位置：设置里重置（pos=null）时回到默认左下角
-				useEffect(() => {
-					setPos(settings.pos || Core.defaultPosition(size, { width: window.innerWidth, height: window.innerHeight }));
-				}, [settings.pos, settings.scale]);
-
 				useEffect(() => {
 					const onResize = () => {
 						setPos((previous) => {
-							const next = Core.snapToEdge(previous, size, { width: window.innerWidth, height: window.innerHeight }, { enabled: settings.snap, threshold: SNAP_DISTANCE });
+							const next = Core.snapToEdge(previous, size, { width: window.innerWidth, height: window.innerHeight }, { enabled: config.snap, threshold: SNAP_DISTANCE });
 							return { x: next.x, y: next.y };
 						});
 					};
 					window.addEventListener("resize", onResize);
 					return () => window.removeEventListener("resize", onResize);
-				}, [settings.snap, size.width, size.height]);
+				}, [config.snap, size.width, size.height]);
 
-				// 座位段变化（桌子变短/变长）后把位置重新夹回可视范围
+				// 大小/人物显隐变化后把位置重新夹回可视范围
 				useEffect(() => {
 					setPos((previous) => {
-						const next = Core.snapToEdge(previous, size, { width: window.innerWidth, height: window.innerHeight }, { enabled: settings.snap, threshold: SNAP_DISTANCE });
+						const next = Core.snapToEdge(previous, size, { width: window.innerWidth, height: window.innerHeight }, { enabled: config.snap, threshold: SNAP_DISTANCE });
 						return { x: next.x, y: next.y };
 					});
-				}, [frame.width, settings.scale]);
+				}, [frame.width, config.scale, config.showCharacters]);
 
 				// 账本开着的时候每分钟刷新一次峰谷状态
 				useEffect(() => {
@@ -460,7 +488,7 @@
 					setOpen(true);
 					setNow(Date.now());
 					window.clearTimeout(panelTimer.current);
-					panelTimer.current = window.setTimeout(() => setOpen(false), PANEL_MS);
+					panelTimer.current = window.setTimeout(() => setOpen(false), config.panelDurationMs || PANEL_MS);
 				}, []);
 
 				const hidePanel = useCallback(() => {
@@ -468,11 +496,11 @@
 					window.clearTimeout(panelTimer.current);
 				}, []);
 
-				if (!settings.visible) return null;
+				if (!config.visible) return null;
 
 				const peak = Core.priceWindow(now);
 				const status = Core.statusInfo(balance);
-				const warn = Boolean(balance.ok && balance.amount <= settings.warnBelow);
+				const warn = Boolean(balance.ok && balance.amount <= config.warnBelow);
 				const tone = warn ? "warn" : balance.ok || balance.stale ? "ok" : "error";
 				const amountText = balance.ok || balance.stale
 					? Core.formatMoney(balance.amount, balance.currency)
@@ -482,7 +510,7 @@
 				const moneyParts = moneyMatch ? [moneyMatch[1], moneyMatch[2]] : ["", amountText];
 				const line = balance.configMissing || (!balance.ok && !balance.stale)
 					? Core.pickLine("error")
-					: Core.pickLine("ok", balance.amount, balance.currency, settings.warnBelow);
+					: Core.pickLine("ok", balance.amount, balance.currency, config.warnBelow);
 
 				const clampToViewport = (x, y) => ({
 					x: Core.clamp(x, 0, Math.max(0, window.innerWidth - size.width)),
@@ -535,9 +563,9 @@
 						}
 						return;
 					}
-					const next = Core.snapToEdge(pos, size, { width: window.innerWidth, height: window.innerHeight }, { enabled: settings.snap, threshold: SNAP_DISTANCE });
+					const next = Core.snapToEdge(pos, size, { width: window.innerWidth, height: window.innerHeight }, { enabled: config.snap, threshold: SNAP_DISTANCE });
 					setPos({ x: next.x, y: next.y });
-					updateSettings({ pos: { x: next.x, y: next.y }, edge: next.edge });
+					writePos(next);
 				};
 
 				const onContextMenu = (event) => {
@@ -589,17 +617,17 @@
 					},
 						h("div", { className: "konfee-stage" },
 							assets ? h(TableBack, { image: assets.desk00, frame }) : null,
-							...layout.segments.map((segment) => h("div", {
+							showSeats ? layout.segments.map((segment) => h("div", {
 								key: segment.id,
 								className: "konfee-seat",
 								"data-char": segment.id,
 								style: {
-									left: `${Math.round((segment.x + frame.offset) * settings.scale)}px`,
-									top: `${Math.round(segment.y * settings.scale)}px`,
-									width: `${Math.round((TABLE.widths[segment.id] || TABLE.charWidth) * settings.scale)}px`,
-									height: `${Math.round(TABLE.charHeight * settings.scale)}px`,
+									left: `${Math.round((segment.x + frame.offset) * config.scale)}px`,
+									top: `${Math.round(segment.y * config.scale)}px`,
+									width: `${Math.round((TABLE.widths[segment.id] || TABLE.charWidth) * config.scale)}px`,
+									height: `${Math.round(TABLE.charHeight * config.scale)}px`,
 								},
-							}, assets ? h(SeatSprite, { id: segment.id, image: assets.seats[segment.id] }) : null)),
+							}, assets ? h(SeatSprite, { id: segment.id, image: assets.seats[segment.id] }) : null)) : null,
 							assets ? h(TableFront, { image: assets.desk01, frame }) : null,
 						),
 					),
@@ -667,133 +695,42 @@
 			}
 
 			function FeeSettings() {
-				const settings = useSettings();
-				const balance = useBalance(settings);
+				const config = useConfig();
+				const balance = useBalance(config);
 				const status = Core.statusInfo(balance);
 				const peak = Core.priceWindow();
 				return h("div", { className: "konfee-set" },
 					styleElement(),
 					h("h2", null, "轻音部费罐"),
-					h("p", { className: "konfee-set-sub" }, "原版茶桌当底座，五人坐满；平时不显示数字，点一下茶桌才弹出账本：余额 + 峰谷 + 更新时间。"),
+					h("p", { className: "konfee-set-sub" }, "设置页只放一个开关；其余旋钮都在下面那个配置文件里（带注释，改完刷新页面生效）。"),
 					h("section", { className: "konfee-set-card" },
 						h("div", { className: "konfee-set-row" },
 							h("div", { className: "konfee-set-name" },
-								h("b", null, "显示挂件"),
-								h("small", null, "关掉后茶桌不再出现"),
+								h("b", null, "显示人物"),
+								h("small", null, "关掉后只留一张空桌子"),
 							),
-							h(FeeSwitch, { checked: settings.visible, onChange: () => updateSettings({ visible: !settings.visible }), label: "显示挂件" }),
-						),
-						h("div", { className: "konfee-set-row" },
-							h("div", { className: "konfee-set-name" },
-								h("b", null, "每轮消耗气泡"),
-								h("small", null, "一轮对话结束后弹一小条：本轮多少钱、多少 token（按官方价目表估算）"),
-							),
-							h(FeeSwitch, { checked: settings.turnBubble, onChange: () => updateSettings({ turnBubble: !settings.turnBubble }), label: "每轮消耗气泡" }),
-						),
-						h("div", { className: "konfee-set-row" },
-							h("div", { className: "konfee-set-name" },
-								h("b", null, "全展示"),
-								h("small", null, "五个人都坐上桌；关掉后按下面单独勾选，桌子会跟着缩短"),
-							),
-							h(FeeSwitch, { checked: settings.showAll, onChange: () => updateSettings({ showAll: !settings.showAll }), label: "全展示" }),
-						),
-						h("div", { className: "konfee-set-row" },
-							h("div", { className: "konfee-set-name" },
-								h("b", null, "坐桌上的人"),
-								h("small", null, settings.showAll ? "「全展示」开着，这里暂时不能单独改" : "勾选谁坐在桌上；不勾的人连带自己那一段桌子一起收起"),
-							),
-							h("div", { className: "konfee-chars" },
-								...Core.ROSTER.map((member) => h("button", {
-									key: member.id,
-									type: "button",
-									className: `konfee-btn${settings.characters[member.id] ? " is-on" : ""}`,
-									disabled: settings.showAll,
-									"aria-pressed": settings.characters[member.id],
-									onClick: () => updateSettings({ characters: { ...settings.characters, [member.id]: !settings.characters[member.id] } }),
-								}, member.name)),
-							),
-						),
-						h("div", { className: "konfee-set-row" },
-							h("div", { className: "konfee-set-name" },
-								h("b", null, "大小"),
-								h("small", null, "整张茶桌缩放"),
-							),
-							h("input", {
-								className: "konfee-range",
-								type: "range",
-								min: Core.SCALE_MIN,
-								max: Core.SCALE_MAX,
-								step: 0.05,
-								value: settings.scale,
-								"aria-label": "挂件大小",
-								onChange: (event) => updateSettings({ scale: Number(event.target.value) }),
-							}),
-							h("span", { className: "konfee-value" }, `${settings.scale.toFixed(2)}×`),
-						),
-						h("div", { className: "konfee-set-row" },
-							h("div", { className: "konfee-set-name" },
-								h("b", null, "贴边吸附"),
-								h("small", null, "拖到边缘松手会自动贴边"),
-							),
-							h(FeeSwitch, { checked: settings.snap, onChange: () => updateSettings({ snap: !settings.snap }), label: "贴边吸附" }),
-						),
-						h("div", { className: "konfee-set-row" },
-							h("div", { className: "konfee-set-name" },
-								h("b", null, "刷新间隔"),
-								h("small", null, "余额多久拉一次（点茶桌也会刷新）"),
-							),
-							h("div", { style: { display: "flex", gap: "6px" } },
-								...Core.REFRESH_OPTIONS.map((seconds) => h("button", {
-									key: seconds,
-									type: "button",
-									className: `konfee-btn${settings.refreshSeconds === seconds ? " is-on" : ""}`,
-									onClick: () => updateSettings({ refreshSeconds: seconds }),
-								}, `${seconds} 秒`)),
-							),
-						),
-						h("div", { className: "konfee-set-row" },
-							h("div", { className: "konfee-set-name" },
-								h("b", null, "低余额提醒"),
-								h("small", null, "低于这个金额时数字变红、台词变省钱"),
-							),
-							h("input", {
-								className: "konfee-range",
-								type: "range",
-								min: 0,
-								max: 50,
-								step: 1,
-								value: settings.warnBelow,
-								"aria-label": "低余额阈值",
-								onChange: (event) => updateSettings({ warnBelow: Number(event.target.value) }),
-							}),
-							h("span", { className: "konfee-value" }, Core.formatMoney(settings.warnBelow)),
+							h(FeeSwitch, { checked: config.showCharacters, onChange: () => updateConfig({ showCharacters: !config.showCharacters }), label: "显示人物" }),
 						),
 					),
 					h("section", { className: "konfee-set-card" },
 						h("div", { className: "konfee-set-row" },
 							h("div", { className: "konfee-set-name" },
+								h("b", null, "配置文件"),
+								h("small", null, "大小、贴边、刷新间隔、低余额阈值、每轮气泡、账本停留时长都在这里"),
+							),
+							h("code", { className: "konfee-path" }, configPath || "~/.dsh/kon-fee-widget.json"),
+						),
+						h("div", { className: "konfee-set-row" },
+							h("div", { className: "konfee-set-name" },
 								h("b", null, "当前余额"),
-								h("small", null, `数据来源：${balance.configMissing ? "未配置 API key" : balance.ok ? "DeepSeek 余额接口" : balance.error || "等待刷新"}`),
+								h("small", null, `${status.text} · 现在是${peak.label}${peak.nextText ? `，${peak.nextText}` : ""}`),
 							),
-							h("span", { className: "konfee-value", style: { width: "auto" } }, balance.ok || balance.stale ? Core.formatMoney(balance.amount, balance.currency) : "—"),
-						),
-						h("div", { className: "konfee-set-row" },
-							h("div", { className: "konfee-set-name" },
-								h("b", null, "计价时段"),
-								h("small", null, `现在是${peak.label}${peak.peak ? `（${peak.detail}）` : `：${peak.detail}`}${peak.nextText ? `，${peak.nextText}` : ""}`),
-							),
-							h("div", { style: { display: "flex", gap: "6px" } },
-								h("button", { type: "button", className: "konfee-btn", onClick: () => balance.refresh() }, "立即刷新"),
-								h("button", { type: "button", className: "konfee-btn", onClick: () => updateSettings({ pos: null, edge: null }) }, "重置位置"),
+							h("div", { style: { display: "flex", alignItems: "center", gap: "8px" } },
+								h("span", { className: "konfee-value", style: { width: "auto" } }, balance.ok || balance.stale ? Core.formatMoney(balance.amount, balance.currency) : "—"),
+								h("button", { type: "button", className: "konfee-btn", onClick: () => balance.refresh() }, "刷新"),
 							),
 						),
-						h("div", { className: "konfee-set-row" },
-							h("div", { className: "konfee-set-name" },
-								h("b", null, "状态"),
-								h("small", null, status.text),
-							),
-						),
-						h("p", { className: "konfee-note" }, "余额由 DSH 宿主侧读凭据后请求 DeepSeek 接口，API key 不会下发到页面；读不到时显示上次的余额。峰谷按北京时间：工作日 9:00–12:00、14:00–18:00 为高峰，其余时间为谷时，周末全天谷价。"),
+						h("p", { className: "konfee-note" }, "配置文件是带注释的 JSON；改完刷新页面生效。余额由宿主读凭据后请求 DeepSeek，API key 不会下发到页面。"),
 					),
 				);
 			}
