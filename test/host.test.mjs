@@ -75,6 +75,7 @@ test("配置文件：默认值带注释写盘、POST 修改、手改后能重新
 		assert.equal(first.json.ok, true);
 		assert.deepEqual(first.json.config.characters, { mio: true, ritsu: true, yui: true, tsumugi: true, azusa: true });
 		assert.equal(first.json.config.scale, 1);
+		assert.equal(first.json.config.bubbleStyle, "cassette", "默认卡带背景");
 		assert.equal(first.json.path, file);
 
 		const written = await readFile(file, "utf8");
@@ -88,6 +89,12 @@ test("配置文件：默认值带注释写盘、POST 修改、手改后能重新
 		assert.equal(posted.json.config.warnBelow, 2);
 		const afterPost = await readFile(file, "utf8");
 		assert.ok(afterPost.includes('"mio": false'), "POST 后写回文件");
+		const bg = await callPost(ctx.handler, "/dsh-kon-fee-widget/config", { bubbleStyle: "mascot" });
+		assert.equal(bg.json.config.bubbleStyle, "mascot");
+		const bgFile = await readFile(file, "utf8");
+		assert.ok(bgFile.includes('"bubbleStyle": "mascot"'), "背景选择写回文件");
+		const bad = await callPost(ctx.handler, "/dsh-kon-fee-widget/config", { bubbleStyle: "nope" });
+		assert.equal(bad.json.config.bubbleStyle, "cassette", "非法值回默认");
 
 		// 手改文件（带注释、只写一部分）→ 下次 GET 能读到
 		await writeFile(file, `{
