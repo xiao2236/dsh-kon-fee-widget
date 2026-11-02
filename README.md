@@ -131,6 +131,7 @@ API key 不会下发到前端。
 ```bash
 node scripts/build-client.mjs   # src/core.cjs + src/client.js → lib/client.js
 node scripts/verify-install.mjs <安装目录>  # 对比安装副本是否漏文件（少 assets 会画不出茶桌）
+curl http://127.0.0.1:<端口>/dsh-kon-fee-widget/health  # 安装完整性：返回 ok / missing 列表
 node scripts/check.mjs          # 清单/素材/常量自检
 node --test test/core.test.mjs test/host.test.mjs
 ```
