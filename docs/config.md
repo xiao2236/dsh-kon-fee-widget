@@ -111,6 +111,7 @@
 | `easterEgg` | boolean | `true` | — | 双击茶桌是否弹彩蛋台词 |
 | `eggLines` | object | `{}` | — | 按在场角色的彩蛋台词，见 [3.3](#33-egglines) |
 | `eggComboChance` | number | `0.5` | 0 ~ 1 | 组合台词触发概率 |
+| `eggSequential` | array | `["mio+ritsu"]` | 最多 8 个键 | 按剧本顺序播放的组合：命中就不看概率，点一次播一句、播完循环 |
 | `lang` | string | `"zh"` | `zh` / `ja` | 彩蛋台词语言 |
 | `voice` | boolean | `true` | — | 有配音文件时是否播放 |
 | `easterEggLines` | array | `[]` | — | 兜底台词池（字符串或 `{zh,ja,voice}`），留空用内置十句 |
@@ -172,6 +173,7 @@
 - 纯字符串 = 中文，切到日文也出这句；
 - `{ "zh": "...", "ja": "...", "voice": "文件名" }`：中日各一份，可带配音；
 - 每个池子最多 30 条，每条最多 120 字。
+- `eggSequential` 里的组合（默认 `mio+ritsu`）走「剧本模式」：按数组顺序逐句播放，点一次一句，不随机、不看 `eggComboChance`。
 - 多说话人的组合台词用 `｜` 分隔（如 `"唯：梓喵！｜梓：唯学姐！"`），双击后会**一句接一句**地播放；单条台词只有一句。
 
 ### 3.4 语音

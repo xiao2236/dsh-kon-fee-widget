@@ -172,6 +172,26 @@
 			.map((part) => part.trim())
 			.filter(Boolean);
 	}
+	/**
+	 * 找出「按顺序播放」的剧本键：给的键里，只要键中所有人都必须在场，
+	 * 就选人数最多的那个（例如 eggSequential 里配了 "mio+ritsu"）。
+	 * 返回原始键名，没有命中返回 null。
+	 */
+	function sequentialKey(presentIds, keys) {
+		const present = new Set((presentIds || []).map((id) => String(id).toLowerCase()));
+		let best = null;
+		let bestSize = 0;
+		for (const key of Array.isArray(keys) ? keys : []) {
+			const parts = String(key).toLowerCase().split("+").map((part) => part.trim()).filter(Boolean);
+			if (!parts.length) continue;
+			if (!parts.every((id) => present.has(id))) continue;
+			if (parts.length > bestSize) {
+				best = key;
+				bestSize = parts.length;
+			}
+		}
+		return best;
+	}
 	/** 从若干 id 里取组合（size >= 2）。 */
 	function combinations(ids, size) {
 		const result = [];
@@ -565,6 +585,7 @@
 		pickEgg,
 		eggText,
 		eggBeats,
+		sequentialKey,
 		normalizeEggEntry,
 		DEFAULT_EGG_LINES,
 		statusInfo,
