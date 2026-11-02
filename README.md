@@ -130,11 +130,20 @@ API key 不会下发到前端。
 
 ```bash
 node scripts/build-client.mjs   # src/core.cjs + src/client.js → lib/client.js
-node scripts/verify-install.mjs <安装目录>  # 对比安装副本是否漏文件（少 assets 会画不出茶桌）
-curl http://127.0.0.1:<端口>/dsh-kon-fee-widget/health  # 安装完整性：返回 ok / missing 列表
 node scripts/check.mjs          # 清单/素材/常量自检
 node --test test/core.test.mjs test/host.test.mjs
+
+npm run deploy                  # 原子部署到桌面 profile（拷贝 → 校验 → 整体替换）
+npm run deploy:dry              # 只拷贝+校验，不替换
+npm run pack:dist               # 打 dist/dsh-kon-fee-widget-<版本>.tgz（可挂 Release / 给 npm 装）
+npm run release                 # build + check + test + pack + deploy 一条龙
+node scripts/verify-install.mjs <安装目录>  # 单独校验某个安装副本是否漏文件
+curl http://127.0.0.1:<端口>/dsh-kon-fee-widget/health  # 安装完整性：{ ok, missing[], version }
 ```
+
+> 部署为什么要「原子」：直接删目录再拷到运行中的插件目录，Windows 文件占用或杀软扫描会让部分文件复制失败，
+> 结果是一个缺 `assets/table/` 的半成品——canvas 拿不到贴图，表现就是「挂件完全不显示」，而宿主接口照常返回 200。
+> `deploy.mjs` 先拷到同级隐藏目录、逐个文件比对通过后才整体改名替换，失败会回滚到旧目录。
 
 目录：
 

@@ -1,6 +1,6 @@
 {
   "name": "dsh-kon-fee-widget",
-  "version": "0.27.2",
+  "version": "0.28.0",
   "description": "DSH 上的《轻音少女》部费挂件：用原版茶桌当底座，五个人坐满；点一下才弹账本——DeepSeek 余额 + 峰谷时段 + 更新时间。",
   "type": "module",
   "main": "lib/index.js",
@@ -20,11 +20,14 @@
     "src",
     "assets",
     "docs",
+    "scripts",
+    "screenshots.json",
     "icon.png",
     "cordis.patch.yml",
     "README.md",
     "LICENSE",
-    "NOTICE"
+    "NOTICE",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "dsh": {
     "bundle": {
@@ -55,7 +58,11 @@
     "build": "node scripts/build-client.mjs",
     "check": "node scripts/check.mjs",
     "test:unit": "node --test test/core.test.mjs test/host.test.mjs",
-    "test": "node scripts/build-client.mjs && node scripts/check.mjs && node --test test/core.test.mjs test/host.test.mjs"
+    "test": "node scripts/build-client.mjs && node scripts/check.mjs && node --test test/core.test.mjs test/host.test.mjs",
+    "deploy": "node scripts/deploy.mjs",
+    "deploy:dry": "node scripts/deploy.mjs --dry",
+    "pack:dist": "node scripts/pack-dist.mjs",
+    "release": "node scripts/build-client.mjs && node scripts/check.mjs && node --test test/core.test.mjs test/host.test.mjs && node scripts/pack-dist.mjs && node scripts/deploy.mjs"
   },
   "keywords": [
     "dsh",

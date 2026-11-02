@@ -23,7 +23,7 @@ if (!existsSync(targetRoot)) {
 	process.exit(2);
 }
 
-const SKIP = /^(\.git|node_modules|\.work|\.gitignore|\.DS_Store)$/;
+const SKIP = /^(\.git|node_modules|\.work|dist|\.gitignore|\.DS_Store)$/;
 const files = [];
 (function walk(dir) {
 	for (const entry of readdirSync(dir, { withFileTypes: true })) {
