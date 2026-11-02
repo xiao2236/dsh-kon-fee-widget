@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 const require = createRequire(import.meta.url);
 const Core = require("../src/core.cjs");
@@ -171,6 +173,20 @@ test("双击彩蛋：单人只出本人台词，组合按概率触发，键顺�
 	const spring = Core.priceWindow(new Date("2026-02-16T02:00:00Z"));
 	assert.equal(spring.peak, false);
 
+	// 剧本模式：默认配置（eggLines 为空）也要能进入阳台相会，回退到内置 17 句
+	const builtin = Core.sequentialPool("mio+ritsu", {});
+	assert.equal(builtin.length, 17);
+	assert.match(builtin[0].voice, /^balcony\/balcony-01-ritsu\.wav$/);
+	assert.match(builtin[16].voice, /^balcony\/balcony-17-ritsu\.wav$/);
+	assert.equal(builtin[17 % builtin.length], builtin[0], "第 18 次点回到第 1 句");
+	// 键顺序无关
+	assert.equal(Core.sequentialPool("ritsu+mio", {}).length, 17);
+	// 自定义优先
+	assert.equal(Core.sequentialPool("mio+ritsu", { "ritsu+mio": [{ zh: "自定义一句" }] })[0].zh, "自定义一句");
+	// 17 段配音必须都在仓库里
+	for (const entry of builtin) {
+		assert.ok(existsSync(join("assets", "voices", entry.voice)), `缺少配音 ${entry.voice}`);
+	}
 	// 组合对白按 ｜ 拆成一人一句的节拍
 	assert.deepEqual(Core.eggBeats({ zh: "澪：甲｜律：乙", ja: "" }), ["澪：甲", "律：乙"]);
 	assert.deepEqual(Core.eggBeats({ zh: "单人一句", ja: "" }), ["单人一句"]);

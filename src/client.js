@@ -596,7 +596,9 @@ const EGG_BEAT_MS = 1600;
 				const playVoice = useCallback((file) => {
 					try {
 						const audio = audioRef.current || (audioRef.current = new Audio());
-						audio.src = `${ASSET_BASE}/voices/${encodeURIComponent(file)}?v=${ASSET_REV}`;
+						// 按路径分段编码，保留子目录的 /（"balcony/xxx.wav" 不会被整串编码成 %2F）
+					const voicePath = String(file).split("/").map((part) => encodeURIComponent(part)).join("/");
+					audio.src = `${ASSET_BASE}/voices/${voicePath}?v=${ASSET_REV}`;
 						audio.volume = 0.7;
 						audio.play().catch(() => {});
 					} catch { /* 不支持播放时静默 */ }
@@ -606,8 +608,9 @@ const EGG_BEAT_MS = 1600;
 				const nextSequential = useCallback(() => {
 					const seq = Core.sequentialKey(visibleIds, config.eggSequential);
 					if (!seq) return null;
-					const pool = (config.eggLines || {})[seq];
-					if (!Array.isArray(pool) || !pool.length) return null;
+					// 配置里没有就用内置剧本（阳台相会 17 句），避免"启用了但没有数据"的空转
+					const pool = Core.sequentialPool(seq, config.eggLines);
+					if (!pool.length) return null;
 					const cursor = seqCursor.current[seq] || 0;
 					seqCursor.current[seq] = cursor + 1;
 					return Core.normalizeEggEntry(pool[cursor % pool.length]);

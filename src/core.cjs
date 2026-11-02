@@ -126,8 +126,25 @@
 			{ ja: "梓：また部費使いすぎです…", zh: "梓：部费又花在哪了…" },
 		],
 		"mio+ritsu": [
-			{ ja: "律：澪、今日も照れてる～", zh: "律：澪，今天也别害羞啦。" },
-			{ ja: "澪：律、やめて…", zh: "澪：律，别闹…" },
+			// 阳台相会（S2E19 学园祭话剧）：罗密欧=澪 / 朱丽叶=律，17 句按顺序连播。
+			// 音频在 assets/voices/balcony/，文件名与顺序一一对应。
+			{ ja: "律：ああ、ロミオ、あなたはなぜロミオなの？", zh: "律：啊——罗密欧——你为什么是罗密欧", voice: "balcony/balcony-01-ritsu.wav" },
+			{ ja: "澪：あの天使のような声", zh: "澪：那个天使般的声音是？", voice: "balcony/balcony-02-mio.wav" },
+			{ ja: "律：なぜここに？", zh: "律：为什么你会在这里", voice: "balcony/balcony-03-ritsu.wav" },
+			{ ja: "律：屋敷の石垣は高くて簡単には登れないの", zh: "律：屋子的围墙很高，应该很难爬上来啊", voice: "balcony/balcony-04-ritsu.wav" },
+			{ ja: "澪：高い石垣など、恋の軽い翼で飛び越えてみせましょう", zh: "澪：高耸的围墙就用恋爱的轻翼来飞跃", voice: "balcony/balcony-05-mio.wav" },
+			{ ja: "律：ああ、ロミオ", zh: "律：啊——罗密欧——", voice: "balcony/balcony-06-ritsu.wav" },
+			{ ja: "澪：ジュリエット", zh: "澪：朱丽叶", voice: "balcony/balcony-07-mio.wav" },
+			{ ja: "澪：ああ、美しいジュリエット！", zh: "澪：啊，美丽的朱丽叶啊", voice: "balcony/balcony-08-mio.wav" },
+			{ ja: "澪：なぜこんな姿に？", zh: "澪：为什么变成这般姿态…", voice: "balcony/balcony-09-mio.wav" },
+			{ ja: "澪：君を一人で死神のところに行かせはしない", zh: "澪：我不能让你一个人去死神那边", voice: "balcony/balcony-10-mio.wav" },
+			{ ja: "澪：この身が朽ち果てると", zh: "澪：即便这身体腐朽不堪", voice: "balcony/balcony-11-mio.wav" },
+			{ ja: "澪：二度と君を放しはしない", zh: "澪：我也不会再度离开你…", voice: "balcony/balcony-12-mio.wav" },
+			{ ja: "澪：ごくごくごく…（喝水）", zh: "澪：吨吨吨喝水", voice: "balcony/balcony-13-mio.wav" },
+			{ ja: "律：ああ、ロミオ", zh: "律：啊，罗密欧", voice: "balcony/balcony-14-ritsu.wav" },
+			{ ja: "律：なぜ私の分の毒を残しておいてくれなかったの", zh: "律：为什么没有把我的那份毒药留下来", voice: "balcony/balcony-15-ritsu.wav" },
+			{ ja: "律：待って", zh: "律：等等我", voice: "balcony/balcony-16-ritsu.wav" },
+			{ ja: "律：この剣が私をあなたのところへ連れて行ってくれる", zh: "律：这把剑将会把我带往你的身边", voice: "balcony/balcony-17-ritsu.wav" },
 		],
 		"azusa+yui": [
 			{ ja: "唯：あずにゃん、一緒に練習しよう！", zh: "唯：梓喵，一起练琴吧！" },
@@ -191,6 +208,32 @@
 			}
 		}
 		return best;
+	}
+	/** 组合键归一化：拆 + 去空白、排序、拼回去（"ritsu+mio" 与 "mio+ritsu" 等价）。 */
+	const normEggKey = (key) => String(key).split("+").map((part) => part.trim()).filter(Boolean).sort().join("+");
+
+	/**
+	 * 取「剧本模式」的台词池：优先用配置里的 eggLines[键]（键顺序无关），
+	 * 配置里没有就回退到内置剧本（例如阳台相会 17 句）。
+	 * 这样即使用户配置是空对象，连播也能正常触发。
+	 */
+	function sequentialPool(key, lines) {
+		const wanted = normEggKey(key);
+		const custom = lines && typeof lines === "object" ? lines : {};
+		for (const name of Object.keys(custom)) {
+			if (normEggKey(name) !== wanted) continue;
+			const pool = (Array.isArray(custom[name]) ? custom[name] : [])
+				.map(normalizeEggEntry)
+				.filter((entry) => entry && (entry.zh || entry.ja));
+			if (pool.length) return pool;
+		}
+		for (const name of Object.keys(DEFAULT_EGG_LINES)) {
+			if (normEggKey(name) !== wanted) continue;
+			return (DEFAULT_EGG_LINES[name] || [])
+				.map(normalizeEggEntry)
+				.filter((entry) => entry && (entry.zh || entry.ja));
+		}
+		return [];
 	}
 	/** 从若干 id 里取组合（size >= 2）。 */
 	function combinations(ids, size) {
@@ -586,6 +629,7 @@
 		eggText,
 		eggBeats,
 		sequentialKey,
+		sequentialPool,
 		normalizeEggEntry,
 		DEFAULT_EGG_LINES,
 		statusInfo,
