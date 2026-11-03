@@ -147,6 +147,10 @@ curl http://127.0.0.1:<端口>/dsh-kon-fee-widget/health  # 安装完整性：{ 
 > 结果是一个缺 `assets/table/` 的半成品——canvas 拿不到贴图，表现就是「挂件完全不显示」，而宿主接口照常返回 200。
 > `deploy.mjs` 先拷到同级隐藏目录、逐个文件比对通过后才整体改名替换，失败会回滚到旧目录。
 
+> ⚠️ **别在 DSH 运行时用市场/`dsh plugin add` 重装本插件**：pnpm 会把包导入到 `node_modules/dsh-kon-fee-widget_tmp_*` 再改名替换，
+> DSH 占着目录时这一步会 `EPERM`，留下一个**缺 `assets/table/` 的半成品**（现象：茶桌位置是空白、人物消失）。
+> 遇到这种情况：退出 DSH → `npm run deploy` → 再启动；或直接 `curl /dsh-kon-fee-widget/health` 看 `missing`。
+
 目录：
 
 ```

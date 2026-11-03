@@ -124,6 +124,7 @@ const EGG_BEAT_MS = 1600;
 .konfee-table.is-drag{cursor:grabbing}
 .konfee-stage{position:absolute;inset:0;transform-origin:50% 100%;transition:transform .16s cubic-bezier(.2,1.6,.4,1)}
 .konfee-table.is-press .konfee-stage{transform:scale(.965)}
+.konfee-missing{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;background:rgba(196,86,63,.94);color:#fff;font-size:10px;line-height:1.4;padding:4px 8px;border-radius:6px;white-space:nowrap;pointer-events:none}
 .konfee-back,.konfee-front{position:absolute;left:0;top:0;width:100%;height:100%;image-rendering:pixelated;pointer-events:none}
 .konfee-back{z-index:0}
 .konfee-front{z-index:3}
@@ -841,6 +842,8 @@ const EGG_BEAT_MS = 1600;
 							}, assets ? h(SeatSprite, { id: segment.id, image: assets.seats[segment.id] }) : null)) : null,
 							assets ? h(TableFront, { image: assets.desk01, frame }) : null,
 						),
+						// 素材没加载成功时画布是空的，给一句能看懂的提示（否则像「挂件消失了」）
+						assetsMissing ? h("div", { className: "konfee-missing", "data-konfee": "missing" }, "素材缺失 · 运行 npm run deploy") : null,
 						h("button", {
 							type: "button",
 							className: "konfee-gear",
