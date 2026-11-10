@@ -106,7 +106,7 @@
 | `warnBelow` | number | `5` | 0 ~ 10000 | 余额低于这个金额时，数字变红 |
 | `turnBubble` | boolean | `true` | — | 每轮对话结束是否弹「本轮消耗」小气泡 |
 | `panelDurationMs` | number | `8000` | 2000 ~ 60000 | 账本气泡停留时长（毫秒） |
-| `bubbleStyle` | string | `"cassette"` | `cassette` / `cassette-full` / `mascot` / `plain` | 气泡背景，见 [3.2](#32-bubblestyle) |
+| `bubbleStyle` | string | `"cassette"` | `cassette` / `cassette-full` / `mascot` / `plain` | 气泡背景；设置页可切换并预览，见 [3.2](#32-bubblestyle) |
 | `bubbleAreaRatio` | number | `1.3` | 0.5 ~ 3 | 气泡面积 =（桌子+人物）面积 × 这个比例 |
 | `skinPack` | string | `"default"` | `default` / `stage` / 自定义 | 图包 id：设置页可切换，`assets/packs/<id>/` 下的同名文件覆盖原版，缺的回退 |
 | `easterEgg` | boolean | `true` | — | 双击茶桌是否弹彩蛋台词 |

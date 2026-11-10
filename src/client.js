@@ -20,6 +20,7 @@
 			const SNAP_DISTANCE = 24;
 			const PANEL_MS = 8000;
 const EGG_BEAT_MS = 1600;
+const PREVIEW_MS = 12000; // 设置页「预览气泡」的停留时长
 
 			// ---------------- 配置（宿主下发；设置页管「谁坐上桌」） ----------------
 			const DEFAULT_CONFIG = {
@@ -44,6 +45,20 @@ const EGG_BEAT_MS = 1600;
 			};
 			const POS_KEY = "dsh-kon-fee:pos";
 			const configListeners = new Set();
+			// 设置页 → 挂件 的「预览气泡」信号（设置页和挂件是两个独立挂载点）
+			const bubblePreviewListeners = new Set();
+			function previewBubble() {
+				for (const listener of bubblePreviewListeners) {
+					try { listener(); } catch { /* 单个订阅失败不影响其它 */ }
+				}
+			}
+			// 气泡样式：值与配置里的 bubbleStyle 一一对应
+			const BUBBLE_STYLES = [
+				{ id: "cassette", name: "卡带", note: "裁到卡带本体，最干净" },
+				{ id: "cassette-full", name: "整张卡带", note: "含灰底与右下角 Logo" },
+				{ id: "mascot", name: "动物玩偶", note: "整张图，占地方最大" },
+				{ id: "plain", name: "纯色卡片", note: "无背景图，奶油色卡片" },
+			];
 			let currentConfig = null;
 			let configPath = "";
 			let configLoaded = false;
@@ -643,6 +658,19 @@ const EGG_BEAT_MS = 1600;
 					window.clearTimeout(panelTimer.current);
 				}, []);
 
+				// 设置页点「预览气泡」→ 立刻用当前样式弹一次账本（停留更久，方便看）
+				useEffect(() => {
+					const listener = () => {
+						setPanelMode("balance");
+						setOpen(true);
+						setNow(Date.now());
+						window.clearTimeout(panelTimer.current);
+						panelTimer.current = window.setTimeout(() => setOpen(false), PREVIEW_MS);
+					};
+					bubblePreviewListeners.add(listener);
+					return () => bubblePreviewListeners.delete(listener);
+				}, []);
+
 				// 语音：和桌宠一样，用一个 Audio 元素播 assets/voices/ 下的文件
 				const playVoice = useCallback((file) => {
 					try {
@@ -1073,6 +1101,32 @@ const EGG_BEAT_MS = 1600;
 								? h("span", { className: "konfee-set-note" }, packs.find((pack) => pack.id === (config.skinPack || "default")).description)
 								: null,
 						) : null,
+						h("div", { className: "konfee-set-row konfee-set-row--pack" },
+							h("b", { className: "konfee-set-label" }, "气泡"),
+							h("select", {
+								className: "konfee-select",
+								"data-konfee": "bubble",
+								value: config.bubbleStyle || "cassette",
+								"aria-label": "气泡样式",
+								onChange: (event) => {
+									updateConfig({ bubbleStyle: event.target.value });
+									previewBubble();
+								},
+							},
+								...BUBBLE_STYLES.map((style) => h("option", {
+									key: style.id,
+									value: style.id,
+									title: style.note,
+								}, style.name)),
+							),
+							h("button", {
+								type: "button",
+								className: "konfee-btn",
+								"data-konfee": "bubble-preview",
+								onClick: () => previewBubble(),
+							}, "预览气泡"),
+							h("span", { className: "konfee-set-note" }, (BUBBLE_STYLES.find((style) => style.id === (config.bubbleStyle || "cassette")) || BUBBLE_STYLES[0]).note),
+						),
 						h("div", { className: "konfee-set-row" },
 							h("b", { className: "konfee-set-label" }, "配置"),
 							h("button", { type: "button", className: "konfee-btn is-primary", onClick: openEditor }, "编辑配置"),
