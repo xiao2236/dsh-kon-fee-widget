@@ -513,6 +513,7 @@ const PREVIEW_MS = 12000; // 设置页「预览气泡」的停留时长
 					const owned = overrides instanceof Set ? overrides : new Set();
 					const suffix = `?v=${ASSET_REV}&pack=${encodeURIComponent(pack || "default")}`;
 					const anims = (meta && meta.animations && typeof meta.animations === "object") ? meta.animations : {};
+					const composeFlag = Boolean(meta && meta.compose);
 					const framesOf = (id) => (Array.isArray(anims[id]) && anims[id].length ? anims[id] : (Core.ANIM[id] || [0]));
 					// 动画角色三种情况：
 					//   ① 图包给了帧表 → 直接用（最精确）
@@ -532,8 +533,9 @@ const PREVIEW_MS = 12000; // 设置页「预览气泡」的停留时长
 						} else if (owned.has(`table/${framesFile}`)) {
 							plan[seat.id] = { file: framesFile, animated: true, compose: false, frames: frameList, scale: ownScale };
 						} else if (owned.has(`table/${staticFile}`)) {
-							// 只有静态图 → 静态（不再合成假动画）
-							plan[seat.id] = { file: staticFile, animated: false, compose: false, frames: frameList, scale: ownScale };
+							// 只有静态图：图包声明 compose 时用「新身体 + 原版动作帧」合成（手臂会动），否则静态
+							const canCompose = composeFlag && ownScale === 1;
+							plan[seat.id] = { file: staticFile, animated: canCompose, compose: canCompose, frames: frameList, scale: ownScale };
 						} else {
 							plan[seat.id] = { file: framesFile, animated: true, compose: false, frames: frameList, scale: 1 };
 						}
@@ -713,6 +715,7 @@ const PREVIEW_MS = 12000; // 设置页「预览气泡」的停留时长
 				// 高清图包元信息：素材倍率、是否平滑、帧率、自定义帧序
 				const packMeta = useMemo(() => ({
 					scale: (activePack && activePack.scale) || 1,
+					compose: Boolean(activePack && activePack.compose),
 					smooth: Boolean(activePack && activePack.smooth),
 					fps: (activePack && activePack.fps) || null,
 					animations: (activePack && activePack.animations) || null,
