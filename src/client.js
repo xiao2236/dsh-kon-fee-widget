@@ -516,7 +516,8 @@ const PREVIEW_MS = 12000; // 设置页「预览气泡」的停留时长
 					const framesOf = (id) => (Array.isArray(anims[id]) && anims[id].length ? anims[id] : (Core.ANIM[id] || [0]));
 					// 动画角色三种情况：
 					//   ① 图包给了帧表 → 直接用（最精确）
-					//   ② 只给了静态图 → 运行时合成（固定层取换装图，动作层取原帧），仍然会动
+					//   ② 只给了静态图 → 该角色就用这张静态图（不再做「原版四肢 + 新身体」的合成，
+					//      那样拼出来的比例会错位，看起来像变形）
 					//   ③ 什么都没给 → 原版帧表
 					const plan = {};
 					for (const seat of TABLE.seats) {
@@ -531,8 +532,8 @@ const PREVIEW_MS = 12000; // 设置页「预览气泡」的停留时长
 						} else if (owned.has(`table/${framesFile}`)) {
 							plan[seat.id] = { file: framesFile, animated: true, compose: false, frames: frameList, scale: ownScale };
 						} else if (owned.has(`table/${staticFile}`)) {
-							// 只有静态图：能合成（scale=1）就合成出动画，否则退回静态
-							plan[seat.id] = { file: staticFile, animated: ownScale === 1, compose: ownScale === 1, frames: frameList, scale: ownScale };
+							// 只有静态图 → 静态（不再合成假动画）
+							plan[seat.id] = { file: staticFile, animated: false, compose: false, frames: frameList, scale: ownScale };
 						} else {
 							plan[seat.id] = { file: framesFile, animated: true, compose: false, frames: frameList, scale: 1 };
 						}
