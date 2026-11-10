@@ -318,8 +318,12 @@ test("图包：/packs 列表可用；?pack=stage 命中图包文件，其它文�
 	assert.ok(stage, "stage 图包在列表里");
 	assert.ok(Array.isArray(stage.overrides) && stage.overrides.includes("table/mio.png"), "overrides 必须列出图包里的实际文件（漏导入 readdirSync 时这里会是空数组）");
 	assert.equal(stage.ready, true, "有素材的图包 ready=true");
+	// ready 必须和 overrides 保持一致：有素材才算可用（第二季 ED 已补素材，不能再写死 false）
+	for (const pack of packs.json.packs) {
+		assert.equal(pack.ready, pack.id === "default" || pack.overrides.length > 0, `${pack.id} 的 ready 与 overrides 不一致`);
+	}
 	const ed2 = packs.json.packs.find((pack) => pack.id === "ed2");
-	assert.equal(ed2.ready, false, "没素材的图包 ready=false");
+	assert.ok(ed2.overrides.includes("table/azusa.png"), "第二季 ED 覆盖了梓");
 
 	const makeRes = () => {
 		const res = new PassThrough();
