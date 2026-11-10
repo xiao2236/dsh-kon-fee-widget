@@ -314,7 +314,12 @@ test("图包：/packs 列表可用；?pack=stage 命中图包文件，其它文�
 	const packs = await callRoute(ctx.handler, "/dsh-kon-fee-widget/packs");
 	assert.equal(packs.json.ok, true);
 	assert.ok(Array.isArray(packs.json.packs) && packs.json.packs.length >= 2, "至少原版 + 一个图包");
-	assert.ok(packs.json.packs.some((pack) => pack.id === "stage"), "stage 图包在列表里");
+	const stage = packs.json.packs.find((pack) => pack.id === "stage");
+	assert.ok(stage, "stage 图包在列表里");
+	assert.ok(Array.isArray(stage.overrides) && stage.overrides.includes("table/mio.png"), "overrides 必须列出图包里的实际文件（漏导入 readdirSync 时这里会是空数组）");
+	assert.equal(stage.ready, true, "有素材的图包 ready=true");
+	const ed2 = packs.json.packs.find((pack) => pack.id === "ed2");
+	assert.equal(ed2.ready, false, "没素材的图包 ready=false");
 
 	const makeRes = () => {
 		const res = new PassThrough();
