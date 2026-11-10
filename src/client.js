@@ -196,7 +196,7 @@ const EGG_BEAT_MS = 1600;
 .konfee-set h2{font-size:18px;font-weight:650;margin:0 0 4px}
 .konfee-set-sub{font-size:12px;opacity:.6;margin:0 0 16px}
 .konfee-set-card{border:1px solid rgba(127,127,127,.2);border-radius:14px;padding:6px 16px;margin:0 0 14px;background:rgba(127,127,127,.035)}
-.konfee-set-row{display:flex;align-items:flex-start;gap:12px;padding:9px 0;border-top:1px solid rgba(127,127,127,.12)}
+.konfee-set-row{display:flex;align-items:flex-start;flex-wrap:wrap;gap:12px;padding:9px 0;border-top:1px solid rgba(127,127,127,.12)}
 .konfee-set-row:first-child{border-top:0}
 .konfee-set-name{flex:1;min-width:0}
 .konfee-set-name b{display:block;font-size:13px;font-weight:600}
@@ -215,7 +215,10 @@ const EGG_BEAT_MS = 1600;
 .konfee-switch.is-on{background:#7c5aa6}
 .konfee-switch.is-on i{transform:translateX(16px)}
 .konfee-switch:disabled{opacity:.45;cursor:default}
-.konfee-chars,.konfee-packs{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 auto;min-width:0}
+.konfee-chars{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 auto;min-width:0}
+.konfee-select{flex:0 0 auto;width:180px;min-width:0;font:inherit;font-size:12px;color:inherit;background:rgba(127,127,127,.06);border:1px solid rgba(127,127,127,.28);border-radius:8px;padding:5px 8px;cursor:pointer}
+.konfee-select:disabled{opacity:.5;cursor:default}
+.konfee-set-note{flex:1 1 100%;min-width:0;font-size:11px;line-height:1.6;opacity:.55;margin:4px 0 0 0;color:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .konfee-path{font-size:10.5px;color:#8a7a6a;background:rgba(127,127,127,.08);padding:3px 7px;border-radius:6px;word-break:break-all;max-width:48%;text-align:right}
 .konfee-btn.is-primary{background:#7c5aa6;border-color:#7c5aa6;color:#fff}
 .konfee-btn.is-primary:hover{background:#6c4c94}
@@ -1051,21 +1054,24 @@ const EGG_BEAT_MS = 1600;
 						),
 						packs.length > 1 ? h("div", { className: "konfee-set-row konfee-set-row--pack" },
 							h("b", { className: "konfee-set-label" }, "图包"),
-							h("div", { className: "konfee-packs" },
-								...packs.map((pack) => h("button", {
+							h("select", {
+								className: "konfee-select",
+								"data-konfee": "pack",
+								value: config.skinPack || "default",
+								"aria-label": "图包",
+								onChange: (event) => updateConfig({ skinPack: event.target.value }),
+							},
+								...packs.map((pack) => h("option", {
 									key: pack.id,
-									type: "button",
-									className: `konfee-btn${(config.skinPack || "default") === pack.id ? " is-on" : ""}${pack.ready === false ? " is-empty" : ""}`,
-									"aria-pressed": (config.skinPack || "default") === pack.id,
-									"aria-label": pack.description || pack.name,
-									title: pack.ready === false ? "素材还没放进来（assets/packs/" + pack.id + "/）" : pack.description || pack.name,
+									value: pack.id,
 									disabled: pack.ready === false,
-									"data-konfee": "pack",
-									"data-pack": pack.id,
 									"data-ready": pack.ready === false ? "0" : "1",
-									onClick: () => updateConfig({ skinPack: pack.id }),
+									title: pack.description || pack.name,
 								}, pack.ready === false ? `${pack.name}（待素材）` : pack.name)),
 							),
+							packs.find((pack) => pack.id === (config.skinPack || "default")) && packs.find((pack) => pack.id === (config.skinPack || "default")).description
+								? h("span", { className: "konfee-set-note" }, packs.find((pack) => pack.id === (config.skinPack || "default")).description)
+								: null,
 						) : null,
 						h("div", { className: "konfee-set-row" },
 							h("b", { className: "konfee-set-label" }, "配置"),
