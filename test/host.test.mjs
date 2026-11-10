@@ -96,6 +96,15 @@ test("配置文件：默认值带注释写盘、POST 修改、手改后能重新
 		const bad = await callPost(ctx.handler, "/dsh-kon-fee-widget/config", { bubbleStyle: "nope" });
 		assert.equal(bad.json.config.bubbleStyle, "cassette", "非法值回默认");
 
+		// 图包：默认 default；POST 切换后写回；非法 id 被清洗
+		assert.equal(first.json.config.skinPack, "default", "默认图包");
+		const pack = await callPost(ctx.handler, "/dsh-kon-fee-widget/config", { skinPack: "stage" });
+		assert.equal(pack.json.config.skinPack, "stage");
+		const packFile = await readFile(file, "utf8");
+		assert.ok(packFile.includes('"skinPack": "stage"'), "图包写回文件");
+		const badPack = await callPost(ctx.handler, "/dsh-kon-fee-widget/config", { skinPack: "../evil" });
+		assert.equal(badPack.json.config.skinPack, "default", "路径穿越型 id 被拒绝");
+
 		// 手改文件（带注释、只写一部分）→ 下次 GET 能读到
 		await writeFile(file, `{
   // 手改：只留空桌子
@@ -292,4 +301,47 @@ test("静态素材路由仍然可用，非本插件前缀返回 404", async () =
 	await ctx.handler({ method: "GET", url: "/other/thing" }, missing);
 	await new Promise((done) => setTimeout(done, 50));
 	assert.equal(missing.status, 404);
+});
+
+test("图包：/packs 列表可用；?pack=stage 命中图包文件，其它文件回退原版", async () => {
+	const { PassThrough } = await import("node:stream");
+	const { stat } = await import("node:fs/promises");
+	const { fileURLToPath } = await import("node:url");
+	const { join } = await import("node:path");
+	const assets = fileURLToPath(new URL("../assets", import.meta.url));
+	const ctx = makeCtx({});
+
+	const packs = await callRoute(ctx.handler, "/dsh-kon-fee-widget/packs");
+	assert.equal(packs.json.ok, true);
+	assert.ok(Array.isArray(packs.json.packs) && packs.json.packs.length >= 2, "至少原版 + 一个图包");
+	assert.ok(packs.json.packs.some((pack) => pack.id === "stage"), "stage 图包在列表里");
+
+	const makeRes = () => {
+		const res = new PassThrough();
+		res.status = 0;
+		res.headers = null;
+		res.writeHead = (status, headers) => { res.status = status; res.headers = headers; };
+		return res;
+	};
+	// 图包里的 ritsu.png（stage 覆盖版）
+	const packRes = makeRes();
+	await ctx.handler({ method: "GET", url: "/dsh-kon-fee-widget/table/ritsu.png?pack=stage" }, packRes);
+	await new Promise((done) => setTimeout(done, 200));
+	assert.equal(packRes.status, 200);
+	const packSize = (await stat(join(assets, "packs", "stage", "table", "ritsu.png"))).size;
+	assert.equal(Number(packRes.headers["content-length"]), packSize, "返回的是图包里的文件");
+
+	// stage 里没有 desk00.png → 回退原版
+	const fallbackRes = makeRes();
+	await ctx.handler({ method: "GET", url: "/dsh-kon-fee-widget/table/desk00.png?pack=stage" }, fallbackRes);
+	await new Promise((done) => setTimeout(done, 200));
+	assert.equal(fallbackRes.status, 200, "图包缺文件时回退原版而不是 404");
+	const baseSize = (await stat(join(assets, "table", "desk00.png"))).size;
+	assert.equal(Number(fallbackRes.headers["content-length"]), baseSize);
+
+	// 非法图包 id 不能越界读文件
+	const evilRes = makeRes();
+	await ctx.handler({ method: "GET", url: "/dsh-kon-fee-widget/table/../../../package.json?pack=stage" }, evilRes);
+	await new Promise((done) => setTimeout(done, 100));
+	assert.equal(evilRes.status, 404, "路径穿越被拒绝");
 });

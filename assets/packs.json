@@ -1,0 +1,24 @@
+{
+  "packs": [
+    {
+      "id": "default",
+      "name": "原始",
+      "description": "原版茶桌场景与五人校服立绘。"
+    },
+    {
+      "id": "stage",
+      "name": "舞台小剧场",
+      "description": "学园祭话剧《罗密欧与朱丽叶》：澪＝罗密欧（蓝条纹演出服＋佩剑）、律＝朱丽叶（红裙＋贝雷帽）。其余三人沿用校服。"
+    },
+    {
+      "id": "ed1",
+      "name": "第一季 ED",
+      "description": "第一季片尾造型（素材待补：把同名 PNG 放进 assets/packs/ed1/table/ 即可自动生效）。"
+    },
+    {
+      "id": "ed2",
+      "name": "第二季 ED",
+      "description": "第二季片尾造型（素材待补：把同名 PNG 放进 assets/packs/ed2/table/ 即可自动生效）。"
+    }
+  ]
+}
