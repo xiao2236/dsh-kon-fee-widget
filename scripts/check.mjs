@@ -127,17 +127,28 @@ try {
 			problems.push(`图包 ${pack.id} 在 packs.json 里声明了，但 assets/packs/${pack.id}/ 不存在`);
 			continue;
 		}
-		// 覆盖的文件必须在尺寸上与原版逐一对齐
+		// 覆盖的文件必须在尺寸上与原版逐一对齐（高清图包按声明的 scale 放大）
+		const scale = Math.max(1, Math.min(8, Math.round(Number(pack.scale) || 1)));
 		for (const seat of Core.TABLE.seats) {
-			const fileName = Core.ANIM[seat.id] ? `${seat.id}-frames.png` : `${seat.id}.png`;
-			const override = join(dir, "table", fileName);
-			if (!existsSync(override)) continue;
-			const base = await imageSize(join(root, "assets/table", fileName));
-			const fake = await imageSize(override);
-			if (base && fake && (base.width !== fake.width || base.height !== fake.height)) {
-				problems.push(`图包 ${pack.id} 的 table/${fileName} 尺寸 ${fake.width}×${fake.height} 与原版 ${base.width}×${base.height} 不一致`);
+			const animated = Core.ANIM[seat.id] ? true : false;
+			for (const [fileName, expect] of [
+				[`${seat.id}.png`, { width: (Core.TABLE.widths[seat.id] || Core.TABLE.charWidth) * scale, height: Core.TABLE.charHeight * scale }],
+				[`${seat.id}-frames.png`, { width: (Core.TABLE.widths[seat.id] || Core.TABLE.charWidth) * scale * 4, height: Core.TABLE.charHeight * scale * 2 }],
+			]) {
+				const override = join(dir, "table", fileName);
+				if (!existsSync(override)) continue;
+				const real = pngSize(override);
+				if (!real) continue;
+				if (real.width !== expect.width || real.height !== expect.height) {
+					problems.push(`图包 ${pack.id} 的 table/${fileName} 尺寸 ${real.width}×${real.height}，按 scale=${scale} 应为 ${expect.width}×${expect.height}`);
+				}
+				// 高清图包：素材宽度必须 ≥ 原版（否则不是放大而是缩水）
+				if (scale > 1 && animated && fileName.endsWith("-frames.png") && real.width < expect.width) {
+					problems.push(`图包 ${pack.id} 的 ${fileName} 比声明的 scale=${scale} 还小`);
+				}
 			}
 		}
+		if (pack.scale && scale > 1) notes.push(`图包 ${pack.id} 是高清图包（scale=${scale}）`);
 	}
 	notes.push(`图包 ${[...ids].join("/")}（${packs.length} 个）`);
 } catch (error) {
